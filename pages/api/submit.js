@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   try {
     const { qrCode, selectedValue, timestamp } = req.body;
 
-    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbwynDyJndKBVGnOM_1kMrH5S3vS4H0KzsuLkU4ppeplNm4UNl4yXLwLD_a8-X75lD0_6A/exec";
+    const googleScriptUrl = "https://script.google.com/macros/s/AKfycbw1TvhizAjJoQhrk8ZvSfwww8loSoE46X9Qkz2r5r0ogs0ZfTbxBINBnT0w5xwBeTuiyA/exec";
 
     const response = await fetch(googleScriptUrl, {
       method: 'POST',
