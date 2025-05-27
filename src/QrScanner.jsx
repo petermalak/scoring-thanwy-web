@@ -1,28 +1,26 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import Webcam from "react-webcam";
-import { 
-  Button, Box, Typography, Select, MenuItem, Paper, 
-  FormControl, InputLabel, CircularProgress, Snackbar, Alert 
+import {
+  Button, Box, Typography, Select, MenuItem, Paper,
+  FormControl, InputLabel, CircularProgress, Snackbar, Alert
 } from "@mui/material";
 import { PlayCircleOutline, StopCircleOutlined } from "@mui/icons-material";
 
 const QrScanner = () => {
-  // State management
   const [scanResult, setScanResult] = useState(null);
   const [selectedValue, setSelectedValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
-  
-  // Refs
+
   const webcamRef = useRef(null);
   const codeReader = useRef(null);
   const scanTimeout = useRef(null);
 
-  // Initialize code reader once
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     codeReader.current = new BrowserMultiFormatReader();
     return () => {
       stopScanner();
@@ -33,27 +31,29 @@ const QrScanner = () => {
     };
   }, []);
 
-  // Scanner handlers
   const startScanner = useCallback(async () => {
     setScanResult(null);
     setError(null);
 
     try {
-      // Quick permission check
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" }
       });
       stream.getTracks().forEach(track => track.stop());
 
       setIsScanning(true);
-      
-      // Add timeout for scanning
+
       scanTimeout.current = setTimeout(() => {
         if (!scanResult) {
           setError("Scanning timed out");
           stopScanner();
         }
-      }, 10000); // 10 second timeout
+      }, 10000);
+
+      if (!webcamRef.current?.video) {
+        setError("Camera not ready");
+        return;
+      }
 
       codeReader.current.decodeFromVideoDevice(
         undefined,
@@ -83,7 +83,6 @@ const QrScanner = () => {
     setIsScanning(false);
   }, []);
 
-  // Form submission
   const submitToGoogleSheet = useCallback(async () => {
     if (!scanResult || !selectedValue) return;
 
@@ -118,7 +117,6 @@ const QrScanner = () => {
     }
   }, [scanResult, selectedValue]);
 
-  // UI event handlers
   const handleValueChange = (event) => {
     setSelectedValue(event.target.value);
   };
@@ -137,13 +135,13 @@ const QrScanner = () => {
       <Paper elevation={3} sx={{ p: 2, mb: 3, position: "relative" }}>
         <Webcam
           ref={webcamRef}
-          style={{ 
-            width: "100%", 
-            display: isScanning ? "block" : "none", 
-            aspectRatio: "1" 
+          style={{
+            width: "100%",
+            display: isScanning ? "block" : "none",
+            aspectRatio: "1"
           }}
           screenshotFormat="image/jpeg"
-          videoConstraints={{ 
+          videoConstraints={{
             facingMode: "environment",
             width: { ideal: 1280 },
             height: { ideal: 720 }
@@ -151,13 +149,13 @@ const QrScanner = () => {
         />
 
         {!isScanning && (
-          <Box sx={{ 
-            backgroundColor: "#f5f5f5", 
-            height: 300, 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center", 
-            aspectRatio: "1" 
+          <Box sx={{
+            backgroundColor: "#f5f5f5",
+            height: 300,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            aspectRatio: "1"
           }}>
             <Typography color="text.secondary">
               {error ? "Camera Error" : "Camera is off"}
@@ -166,20 +164,20 @@ const QrScanner = () => {
         )}
 
         <Box sx={{ display: "flex", justifyContent: "center", mt: 2, gap: 2 }}>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            startIcon={<PlayCircleOutline />} 
-            onClick={startScanner} 
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<PlayCircleOutline />}
+            onClick={startScanner}
             disabled={isScanning || !!scanResult}
           >
             Start Scanner
           </Button>
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            startIcon={<StopCircleOutlined />} 
-            onClick={stopScanner} 
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<StopCircleOutlined />}
+            onClick={stopScanner}
             disabled={!isScanning}
           >
             Stop Scanner
@@ -191,22 +189,22 @@ const QrScanner = () => {
         <>
           <Paper elevation={3} sx={{ p: 2, mb: 3 }}>
             <Typography variant="h6">Scanned QR Code:</Typography>
-            <Typography sx={{ 
-              wordBreak: "break-all", 
-              mb: 2, 
-              fontFamily: "monospace", 
-              backgroundColor: "#f5f5f5", 
-              p: 1, 
-              borderRadius: 1 
+            <Typography sx={{
+              wordBreak: "break-all",
+              mb: 2,
+              fontFamily: "monospace",
+              backgroundColor: "#f5f5f5",
+              p: 1,
+              borderRadius: 1
             }}>
               {scanResult}
             </Typography>
 
             <FormControl fullWidth sx={{ mt: 2 }}>
               <InputLabel>Select Rating (1-5)</InputLabel>
-              <Select 
-                value={selectedValue} 
-                onChange={handleValueChange} 
+              <Select
+                value={selectedValue}
+                onChange={handleValueChange}
                 label="Select Rating (1-5)"
               >
                 {[1, 2, 3, 4, 5].map((num) => (
@@ -237,15 +235,15 @@ const QrScanner = () => {
         </>
       )}
 
-      <Snackbar 
-        open={!!error || success} 
-        autoHideDuration={6000} 
+      <Snackbar
+        open={!!error || success}
+        autoHideDuration={6000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={success ? "success" : "error"} 
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={success ? "success" : "error"}
           sx={{ width: "100%" }}
         >
           {success ? "Data successfully saved!" : error}
