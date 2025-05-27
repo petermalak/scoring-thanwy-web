@@ -2,7 +2,9 @@
   "name": "qr-scanner-vercel",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next dev"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "@mui/icons-material": "^5.11.0",
