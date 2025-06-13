@@ -6,6 +6,13 @@ import { JWT } from 'google-auth-library';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
+// Ensure we're using the same environment variable name throughout
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+
+if (!SPREADSHEET_ID) {
+  throw new Error('SPREADSHEET_ID environment variable is not set');
+}
+
 const auth = new JWT({
   email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
   key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -110,10 +117,10 @@ export async function appendRow(sheetName, values) {
 }
 
 // Get the first sheet name
-async function getFirstSheetName() {
+export async function getFirstSheetName() {
   try {
     const response = await sheets.spreadsheets.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      spreadsheetId: SPREADSHEET_ID,
     });
     return response.data.sheets[0].properties.title;
   } catch (error) {
@@ -129,12 +136,12 @@ export async function getSheetData() {
       return sheetDataCache;
     }
 
-    // Get the first sheet name
     const sheetName = await getFirstSheetName();
+    console.log('Fetching data from sheet:', sheetName);
 
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: `${sheetName}!A1:Z1000`, // Use the actual sheet name
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1:Z1000`,
     });
 
     const rows = response.data.values || [];
@@ -170,7 +177,7 @@ export async function updateCell(sheetName, cell, value) {
   return withRetry(
     async () => {
       const response = await sheets.spreadsheets.values.update({
-        spreadsheetId: process.env.SPREADSHEET_ID,
+        spreadsheetId: SPREADSHEET_ID,
         range: `${sheetName}!${cell}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
@@ -187,8 +194,8 @@ export async function getHeaders() {
   try {
     const sheetName = await getFirstSheetName();
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: `${sheetName}!A1:Z1`, // Use the actual sheet name
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1:Z1`,
     });
 
     return response.data.values?.[0] || [];
@@ -198,21 +205,61 @@ export async function getHeaders() {
   }
 }
 
-export async function findRowByValue(value) {
+export async function findRowByValue(columnName, value) {
   try {
-    const data = await getSheetData();
-    return data.find(row => row.qrcode === value);
+    console.log('Finding row with:', { columnName, value });
+    
+    const sheetName = await getFirstSheetName();
+    console.log('Using sheet:', sheetName);
+    
+    const headers = await getHeaders();
+    console.log('Sheet Headers:', headers);
+    
+    const columnIndex = headers.findIndex(h => h.toLowerCase() === columnName.toLowerCase());
+    console.log('Column Index:', columnIndex);
+    
+    if (columnIndex === -1) {
+      throw new Error(`Column "${columnName}" not found in sheet`);
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A1:Z1000`,
+    });
+
+    const rows = response.data.values || [];
+    console.log('Total rows:', rows.length);
+
+    if (rows.length === 0) {
+      throw new Error('No data found in sheet');
+    }
+
+    // Start from index 1 to skip header row
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[columnIndex] === value) {
+        console.log('Found matching row:', i + 1);
+        return i + 1; // Return 1-based row number
+      }
+    }
+
+    console.log('No matching row found');
+    return null;
   } catch (error) {
-    console.error('Error finding row:', error);
+    console.error('Error in findRowByValue:', error);
     throw error;
   }
 }
 
 export async function getRowData(sheetName, rowNumber) {
+  if (!rowNumber) {
+    throw new Error('Row number is required');
+  }
+
   return withRetry(
     async () => {
       const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: process.env.SPREADSHEET_ID,
+        spreadsheetId: SPREADSHEET_ID,
         range: `${sheetName}!A${rowNumber}:Z${rowNumber}`,
         valueRenderOption: 'UNFORMATTED_VALUE',
       });
@@ -223,22 +270,18 @@ export async function getRowData(sheetName, rowNumber) {
 }
 
 export async function updateRowScore(rowIndex, newScore) {
-  try {
-    const sheetName = await getFirstSheetName();
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: `${sheetName}!D${rowIndex + 2}`, // Use the actual sheet name
-      valueInputOption: 'RAW',
-      resource: {
-        values: [[newScore.toString()]]
-      }
-    });
-
-    // Invalidate cache
-    sheetDataCache = null;
-    lastFetchTime = null;
-  } catch (error) {
-    console.error('Error updating score:', error);
-    throw error;
+  if (!rowIndex) {
+    throw new Error('Row index is required');
   }
+
+  const sheetName = await getFirstSheetName();
+  const headers = await getHeaders();
+  const scoreColumnIndex = headers.findIndex(h => h.toLowerCase() === 'score');
+  
+  if (scoreColumnIndex === -1) {
+    throw new Error('Score column not found in sheet');
+  }
+
+  const columnLetter = String.fromCharCode(65 + scoreColumnIndex); // Convert index to column letter
+  return updateCell(sheetName, `${columnLetter}${rowIndex}`, newScore);
 }

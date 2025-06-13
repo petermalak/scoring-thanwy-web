@@ -124,13 +124,28 @@ const QrScanner = () => {
 
     try {
       const results = await Promise.all(
-        pendingUpdates.map(update =>
-          fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(update)
-          }).then(res => res.json())
-        )
+        pendingUpdates.map(async (update) => {
+          try {
+            const response = await fetch('/api/submit', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify(update)
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to submit score');
+            }
+
+            return await response.json();
+          } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+          }
+        })
       );
 
       const allSuccessful = results.every(result => result.success);
@@ -142,6 +157,7 @@ const QrScanner = () => {
         throw new Error('Some updates failed');
       }
     } catch (err) {
+      console.error('Sync Error:', err);
       setError(err.message || "Sync failed");
     } finally {
       setSyncing(false);

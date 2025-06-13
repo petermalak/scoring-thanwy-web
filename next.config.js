@@ -9,6 +9,10 @@ const nextConfig = {
       },
     ];
   },
+  // Add basePath if your app is not served from the root
+  // basePath: '',
+  // Add trailing slash to ensure proper routing
+  trailingSlash: true,
 };
 
 module.exports = nextConfig; 
