@@ -1,5 +1,5 @@
-import dynamic from 'next/dynamic';
-const QrScanner = dynamic(() => import('../src/QrScanner'), { ssr: false });
+import SplashScreen from '../src/SplashScreen';
+
 export default function Home() {
-  return <QrScanner />;
+  return <SplashScreen />;
 }

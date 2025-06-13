@@ -1,5 +1,5 @@
 // pages/api/submit.js
-import { appendRow, getSheetData, updateCell } from '../../utils/sheets';
+import { appendRow, getSheetData, updateCell, findRowByValue, getHeaders, getRowData } from '../../utils/sheets';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,56 +19,50 @@ export default async function handler(req, res) {
   }
 
   try {
-    const usersData = await getSheetData(process.env.SHEET_NAME);
-    const headers = usersData[0];
-    const idIndex = headers.indexOf('ID');
-    const codeValue = headers.indexOf('CodeValue');
-    const scoreIndex = headers.indexOf('Score');
-    const nameIndex = headers.indexOf('Name');
-    const classIndex = headers.indexOf('Class');
-    const teamIndex = headers.indexOf('Team');
-
-    let userRow = null;
-    for (let i = 1; i < usersData.length; i++) {
-      if (usersData[i][codeValue] === qrCode) {
-        userRow = i + 1; // Adjust for header row
-        break;
-      }
-    }
+    // Get headers and find row in parallel
+    const [headers, userRow] = await Promise.all([
+      getHeaders(process.env.SHEET_NAME),
+      findRowByValue(process.env.SHEET_NAME, 'CodeValue', qrCode)
+    ]);
 
     if (!userRow) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const currentScore = parseInt(usersData[userRow - 1][scoreIndex], 10) || 0;
+    const idIndex = headers.indexOf('ID');
+    const scoreIndex = headers.indexOf('Score');
+    const nameIndex = headers.indexOf('Name');
+    const classIndex = headers.indexOf('Class');
+    const teamIndex = headers.indexOf('Team');
+
+    // Get real-time data for the user
+    const userData = await getRowData(process.env.SHEET_NAME, userRow);
+    if (!userData) {
+      return res.status(404).json({ error: 'User data not found' });
+    }
+
+    const currentScore = parseInt(userData[scoreIndex], 10) || 0;
     const newScore = currentScore + scoreToAdd;
 
-    const scoreCell = `${String.fromCharCode(65 + scoreIndex)}${userRow}`;
-    await updateCell(process.env.SHEET_NAME, scoreCell, newScore);
-
-    const userData = usersData[userRow - 1];
-
-    await appendRow(process.env.LOGS_SHEET_NAME, [
-      timestamp || new Date().toISOString(),
-      qrCode,
-      userData[nameIndex],
-      userData[classIndex],
-      userData[teamIndex],
-      scoreToAdd,
-      newScore,
+    // Update score and log in parallel
+    await Promise.all([
+      // Update the score immediately
+      updateCell(process.env.SHEET_NAME, `${String.fromCharCode(65 + scoreIndex)}${userRow}`, newScore),
+      // Log the submission
+      appendRow(process.env.LOGS_SHEET_NAME, [
+        timestamp || new Date().toISOString(),
+        qrCode,
+        userData[nameIndex],
+        userData[classIndex],
+        userData[teamIndex],
+        scoreToAdd,
+        newScore,
+      ])
     ]);
 
     return res.status(200).json({
       success: true,
-      message: 'Score updated successfully',
-      userData: {
-        id: qrCode,
-        name: userData[nameIndex],
-        class: userData[classIndex],
-        team: userData[teamIndex],
-        previousScore: currentScore,
-        newScore: newScore,
-      },
+      message: 'Score updated successfully'
     });
   } catch (error) {
     console.error('API Error:', error);

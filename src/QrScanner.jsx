@@ -3,9 +3,14 @@ import { BrowserMultiFormatReader } from "@zxing/library";
 import Webcam from "react-webcam";
 import {
   Button, Box, Typography, Select, MenuItem, Paper,
-  FormControl, InputLabel, CircularProgress, Snackbar, Alert
+  FormControl, InputLabel, CircularProgress, Snackbar, Alert,
+  List, ListItem, ListItemText, ListItemSecondaryAction, IconButton,
+  Divider, Card, CardContent
 } from "@mui/material";
-import { PlayCircleOutline, StopCircleOutlined } from "@mui/icons-material";
+import {
+  PlayCircleOutline, StopCircleOutlined, Delete as DeleteIcon,
+  Sync as SyncIcon, Construction as ConstructionIcon
+} from "@mui/icons-material";
 
 const QrScanner = () => {
   const [scanResult, setScanResult] = useState(null);
@@ -14,10 +19,20 @@ const QrScanner = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState([]);
+  const [syncing, setSyncing] = useState(false);
+  const [apiResponse, setApiResponse] = useState(null);
 
   const webcamRef = useRef(null);
   const codeReader = useRef(null);
   const scanTimeout = useRef(null);
+
+  // Custom theme colors
+  const theme = {
+    primary: '#f9d950',
+    background: '#f9f5e1',
+    text: '#000000',
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -34,6 +49,7 @@ const QrScanner = () => {
   const startScanner = useCallback(async () => {
     setScanResult(null);
     setError(null);
+    setApiResponse(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -83,39 +99,54 @@ const QrScanner = () => {
     setIsScanning(false);
   }, []);
 
-  const submitToGoogleSheet = useCallback(async () => {
+  const addToPendingUpdates = useCallback(() => {
     if (!scanResult || !selectedValue) return;
 
-    setLoading(true);
+    setPendingUpdates(prev => [...prev, {
+      qrCode: scanResult,
+      selectedValue: parseInt(selectedValue, 10),
+      timestamp: new Date().toISOString()
+    }]);
+
+    setScanResult(null);
+    setSelectedValue("");
+  }, [scanResult, selectedValue]);
+
+  const removePendingUpdate = useCallback((index) => {
+    setPendingUpdates(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const syncUpdates = useCallback(async () => {
+    if (pendingUpdates.length === 0) return;
+
+    setSyncing(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qrCode: scanResult,
-          selectedValue,
-          timestamp: new Date().toISOString()
-        })
-      });
+      const results = await Promise.all(
+        pendingUpdates.map(update =>
+          fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(update)
+          }).then(res => res.json())
+        )
+      );
 
-      if (!response.ok) {
-        throw new Error(await response.text());
+      const allSuccessful = results.every(result => result.success);
+      if (allSuccessful) {
+        setSuccess(true);
+        setPendingUpdates([]);
+        setTimeout(() => setSuccess(false), 2000);
+      } else {
+        throw new Error('Some updates failed');
       }
-
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setScanResult(null);
-        setSelectedValue("");
-      }, 2000);
     } catch (err) {
-      setError(err.message || "Submission failed");
+      setError(err.message || "Sync failed");
     } finally {
-      setLoading(false);
+      setSyncing(false);
     }
-  }, [scanResult, selectedValue]);
+  }, [pendingUpdates]);
 
   const handleValueChange = (event) => {
     setSelectedValue(event.target.value);
@@ -126,113 +157,278 @@ const QrScanner = () => {
     setSuccess(false);
   };
 
+  const buildInfoRow = (label, value, isBold = false) => (
+    <Box sx={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      py: 1,
+      '& > *': {
+        fontWeight: isBold ? 'bold' : 'normal',
+        fontSize: '1rem'
+      }
+    }}>
+      <Typography>{label}</Typography>
+      <Typography>{value}</Typography>
+    </Box>
+  );
+
   return (
-    <Box sx={{ maxWidth: 600, margin: "auto", p: 3 }}>
-      <Typography variant="h4" gutterBottom align="center">
-        QR Code Scanner
+    <Box sx={{ 
+      maxWidth: 600, 
+      margin: "auto", 
+      p: 3,
+      backgroundColor: theme.background,
+      minHeight: '100vh'
+    }}>
+      <Typography 
+        variant="h4" 
+        gutterBottom 
+        align="center"
+        sx={{ 
+          color: theme.text,
+          fontWeight: 'bold',
+          mb: 3
+        }}
+      >
+        مسح كود QR
       </Typography>
 
-      <Paper elevation={3} sx={{ p: 2, mb: 3, position: "relative" }}>
-        <Webcam
-          ref={webcamRef}
-          style={{
-            width: "100%",
-            display: isScanning ? "block" : "none",
-            aspectRatio: "1"
-          }}
-          screenshotFormat="image/jpeg"
-          videoConstraints={{
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }}
-        />
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          p: 2, 
+          mb: 3, 
+          position: "relative",
+          borderRadius: 2,
+          overflow: 'hidden'
+        }}
+      >
+        <Box sx={{ position: 'relative', aspectRatio: '1' }}>
+          <Webcam
+            ref={webcamRef}
+            style={{
+              width: "100%",
+              display: isScanning ? "block" : "none",
+              aspectRatio: "1"
+            }}
+            screenshotFormat="image/jpeg"
+            videoConstraints={{
+              facingMode: "environment",
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }}
+          />
 
-        {!isScanning && (
+          {!isScanning && (
+            <Box sx={{
+              backgroundColor: "#f5f5f5",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <Typography color="text.secondary">
+                الكاميرا مغلقة
+              </Typography>
+            </Box>
+          )}
+
           <Box sx={{
-            backgroundColor: "#f5f5f5",
-            height: 300,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            aspectRatio: "1"
-          }}>
-            <Typography color="text.secondary">
-              {error ? "Camera Error" : "Camera is off"}
-            </Typography>
-          </Box>
-        )}
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 220,
+            height: 220,
+            border: '3px solid white',
+            borderRadius: 2,
+          }} />
+        </Box>
 
         <Box sx={{ display: "flex", justifyContent: "center", mt: 2, gap: 2 }}>
           <Button
             variant="contained"
-            color="primary"
             startIcon={<PlayCircleOutline />}
             onClick={startScanner}
             disabled={isScanning || !!scanResult}
+            sx={{
+              bgcolor: theme.primary,
+              color: theme.text,
+              '&:hover': {
+                bgcolor: theme.primary,
+                opacity: 0.9
+              }
+            }}
           >
-            Start Scanner
+            تشغيل
           </Button>
           <Button
             variant="contained"
-            color="secondary"
             startIcon={<StopCircleOutlined />}
             onClick={stopScanner}
             disabled={!isScanning}
+            sx={{
+              bgcolor: theme.primary,
+              color: theme.text,
+              '&:hover': {
+                bgcolor: theme.primary,
+                opacity: 0.9
+              }
+            }}
           >
-            Stop Scanner
+            إيقاف
           </Button>
         </Box>
       </Paper>
 
       {scanResult && (
-        <>
-          <Paper elevation={3} sx={{ p: 2, mb: 3 }}>
-            <Typography variant="h6">Scanned QR Code:</Typography>
-            <Typography sx={{
-              wordBreak: "break-all",
-              mb: 2,
-              fontFamily: "monospace",
-              backgroundColor: "#f5f5f5",
-              p: 1,
-              borderRadius: 1
-            }}>
-              {scanResult}
-            </Typography>
+        <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+            تم مسح: {scanResult}
+          </Typography>
 
-            <FormControl fullWidth sx={{ mt: 2 }}>
-              <InputLabel>Select Rating (1-5)</InputLabel>
-              <Select
-                value={selectedValue}
-                onChange={handleValueChange}
-                label="Select Rating (1-5)"
-              >
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <MenuItem key={num} value={num}>{num}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Paper>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>اختيار النقاط</InputLabel>
+            <Select
+              value={selectedValue}
+              onChange={handleValueChange}
+              label="اختيار النقاط"
+              sx={{
+                bgcolor: 'white',
+                borderRadius: 2
+              }}
+            >
+              <MenuItem value="50">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ConstructionIcon sx={{ color: 'yellow' }} />
+                  <Typography>حضور اول ١٠ دقايق = ٥٠ طوبة</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="25">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ConstructionIcon sx={{ color: 'yellow' }} />
+                  <Typography>حضور تاني ١٠ دقايق = ٢٥ طوبة</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="10">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ConstructionIcon sx={{ color: 'yellow' }} />
+                  <Typography>مشاركة في الموضوع = ١٠ طوبات</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+          </FormControl>
 
           <Button
             variant="contained"
-            color="primary"
-            onClick={submitToGoogleSheet}
-            disabled={!selectedValue || loading}
+            onClick={addToPendingUpdates}
+            disabled={!selectedValue}
             fullWidth
             size="large"
-            sx={{ mb: 2 }}
+            sx={{
+              mt: 2,
+              bgcolor: theme.primary,
+              color: theme.text,
+              height: 50,
+              borderRadius: 2,
+              '&:hover': {
+                bgcolor: theme.primary,
+                opacity: 0.9
+              }
+            }}
           >
-            {loading ? (
-              <>
-                <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
-                Submitting...
-              </>
-            ) : (
-              'Submit to Google Sheet'
-            )}
+            إضافة إلى القائمة
           </Button>
-        </>
+        </Paper>
+      )}
+
+      {pendingUpdates.length > 0 && (
+        <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              التحديثات المعلقة ({pendingUpdates.length})
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<SyncIcon />}
+              onClick={syncUpdates}
+              disabled={syncing}
+              sx={{
+                bgcolor: theme.primary,
+                color: theme.text,
+                '&:hover': {
+                  bgcolor: theme.primary,
+                  opacity: 0.9
+                }
+              }}
+            >
+              {syncing ? (
+                <>
+                  <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
+                  جاري المزامنة...
+                </>
+              ) : (
+                'مزامنة الكل'
+              )}
+            </Button>
+          </Box>
+          <List>
+            {pendingUpdates.map((update, index) => (
+              <React.Fragment key={index}>
+                <ListItem>
+                  <ListItemText
+                    primary={update.qrCode}
+                    secondary={`النقاط: ${update.selectedValue} طوبة`}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() => removePendingUpdate(index)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+                {index < pendingUpdates.length - 1 && <Divider />}
+              </React.Fragment>
+            ))}
+          </List>
+        </Paper>
+      )}
+
+      {apiResponse && (
+        <Card sx={{ mb: 3, borderRadius: 2 }}>
+          <CardContent>
+            <Typography 
+              variant="h6" 
+              align="center" 
+              sx={{ 
+                color: 'success.main',
+                fontWeight: 'bold',
+                mb: 2
+              }}
+            >
+              تم تسجيل النقاط بنجاح
+            </Typography>
+            {buildInfoRow("الاسم:", apiResponse.userData.name)}
+            {buildInfoRow("الفصل:", apiResponse.userData.class)}
+            {buildInfoRow("الفريق:", apiResponse.userData.team)}
+            <Divider sx={{ my: 2 }} />
+            {buildInfoRow("النقاط السابقة:", `${apiResponse.userData.previousScore} طوبة`, true)}
+            {buildInfoRow("النقاط الجديدة:", `${apiResponse.userData.newScore} طوبة`, true)}
+            <Typography 
+              align="center" 
+              sx={{ 
+                mt: 2,
+                color: 'primary.main',
+                fontWeight: 'bold'
+              }}
+            >
+              تم إضافة {selectedValue} طوبة
+            </Typography>
+          </CardContent>
+        </Card>
       )}
 
       <Snackbar
@@ -246,7 +442,7 @@ const QrScanner = () => {
           severity={success ? "success" : "error"}
           sx={{ width: "100%" }}
         >
-          {success ? "Data successfully saved!" : error}
+          {success ? "تم حفظ جميع التحديثات بنجاح!" : error}
         </Alert>
       </Snackbar>
     </Box>
