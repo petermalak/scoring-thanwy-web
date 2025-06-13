@@ -22,6 +22,7 @@ export default async function handler(req, res) {
     const usersData = await getSheetData(process.env.SHEET_NAME);
     const headers = usersData[0];
     const idIndex = headers.indexOf('ID');
+    const codeValue = headers.indexOf('CodeValue');
     const scoreIndex = headers.indexOf('Score');
     const nameIndex = headers.indexOf('Name');
     const classIndex = headers.indexOf('Class');
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
 
     let userRow = null;
     for (let i = 1; i < usersData.length; i++) {
-      if (usersData[i][idIndex] === qrCode) {
+      if (usersData[i][codeValue] === qrCode) {
         userRow = i + 1; // Adjust for header row
         break;
       }
