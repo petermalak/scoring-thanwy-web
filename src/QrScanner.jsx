@@ -1,18 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BrowserMultiFormatReader } from "@zxing/library";
 import Webcam from "react-webcam";
+import { useRouter } from 'next/router';
 import {
   Button, Box, Typography, Select, MenuItem, Paper,
   FormControl, InputLabel, CircularProgress, Snackbar, Alert,
   List, ListItem, ListItemText, ListItemSecondaryAction, IconButton,
-  Divider, Card, CardContent
+  Divider, Card, CardContent, LinearProgress, Fab
 } from "@mui/material";
 import {
   PlayCircleOutline, StopCircleOutlined, Delete as DeleteIcon,
-  Sync as SyncIcon, Construction as ConstructionIcon
+  Sync as SyncIcon, Construction as ConstructionIcon,
+  QrCode as QrCodeIcon
 } from "@mui/icons-material";
+import Image from 'next/image';
 
 const QrScanner = () => {
+  const router = useRouter();
   const [scanResult, setScanResult] = useState(null);
   const [selectedValue, setSelectedValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,11 +25,16 @@ const QrScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [pendingUpdates, setPendingUpdates] = useState([]);
   const [syncing, setSyncing] = useState(false);
-  const [apiResponse, setApiResponse] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [currentUpdate, setCurrentUpdate] = useState(0);
+  const [processedUsers, setProcessedUsers] = useState({});
 
   const webcamRef = useRef(null);
   const codeReader = useRef(null);
   const scanTimeout = useRef(null);
+
+  // Hardcoded headers
+  const HEADERS = ['ID', 'CodeValue', 'Name', 'Class', 'Team', 'Score'];
 
   // Custom theme colors
   const theme = {
@@ -46,10 +55,25 @@ const QrScanner = () => {
     };
   }, []);
 
+  useEffect(() => {
+    // Check if there are codes in the URL
+    if (router.query.codes) {
+      const codes = router.query.codes.split(',');
+      // Add each code to pending updates
+      const newUpdates = codes.map(code => ({
+        qrCode: code,
+        selectedValue: parseInt(selectedValue, 10) || 0,
+        timestamp: new Date().toISOString()
+      }));
+      setPendingUpdates(prev => [...prev, ...newUpdates]);
+      // Clear the URL parameter
+      router.replace('/scanner', undefined, { shallow: true });
+    }
+  }, [router.query.codes, selectedValue]);
+
   const startScanner = useCallback(async () => {
     setScanResult(null);
     setError(null);
-    setApiResponse(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -116,53 +140,52 @@ const QrScanner = () => {
     setPendingUpdates(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const syncUpdates = useCallback(async () => {
+  const syncUpdates = async () => {
     if (pendingUpdates.length === 0) return;
 
     setSyncing(true);
-    setError(null);
+    setProgress(0);
+    setCurrentUpdate(0);
+    setProcessedUsers({});
 
     try {
-      const results = await Promise.all(
-        pendingUpdates.map(async (update) => {
-          try {
-            const response = await fetch('/api/submit', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-              body: JSON.stringify(update)
-            });
+      // Send all updates in a single request
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          updates: pendingUpdates.map(update => ({
+            qrCode: update.qrCode,
+            selectedValue: update.selectedValue
+          }))
+        }),
+      });
 
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || 'Failed to submit score');
-            }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit score');
+      }
 
-            return await response.json();
-          } catch (error) {
-            console.error('API Error:', error);
-            throw error;
-          }
-        })
-      );
-
-      const allSuccessful = results.every(result => result.success);
-      if (allSuccessful) {
+      const result = await response.json();
+      
+      if (result.success) {
         setSuccess(true);
         setPendingUpdates([]);
-        setTimeout(() => setSuccess(false), 2000);
+        setProcessedUsers({});
+        setProgress(100);
+        setCurrentUpdate(0);
       } else {
-        throw new Error('Some updates failed');
+        throw new Error(result.message || 'Failed to submit score');
       }
-    } catch (err) {
-      console.error('Sync Error:', err);
-      setError(err.message || "Sync failed");
+    } catch (error) {
+      console.error('Error syncing updates:', error);
+      setError(error.message || 'Failed to submit score');
     } finally {
       setSyncing(false);
     }
-  }, [pendingUpdates]);
+  };
 
   const handleValueChange = (event) => {
     setSelectedValue(event.target.value);
@@ -190,24 +213,73 @@ const QrScanner = () => {
 
   return (
     <Box sx={{ 
-      maxWidth: 600, 
+      maxWidth: 800, 
       margin: "auto", 
       p: 3,
       backgroundColor: theme.background,
       minHeight: '100vh'
     }}>
-      <Typography 
-        variant="h4" 
-        gutterBottom 
-        align="center"
-        sx={{ 
-          color: theme.text,
-          fontWeight: 'bold',
-          mb: 3
-        }}
-      >
-        مسح كود QR
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<QrCodeIcon />}
+          onClick={() => router.push('/selector')}
+          sx={{
+            bgcolor: theme.primary,
+            color: theme.text,
+            '&:hover': {
+              bgcolor: theme.primary,
+              opacity: 0.9
+            }
+          }}
+        >
+          اختيار من القائمة
+        </Button>
+      </Box>
+
+      {syncing && (
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 2, 
+            mb: 3, 
+            backgroundColor: 'white',
+            borderRadius: 2,
+            border: '1px solid rgba(46, 125, 50, 0.1)'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle1" color="text.secondary" sx={{ flex: 1 }}>
+              جاري المعالجة
+            </Typography>
+            <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 'bold' }}>
+              {currentUpdate} من {pendingUpdates.length}
+            </Typography>
+          </Box>
+          <LinearProgress 
+            variant="determinate" 
+            value={progress} 
+            sx={{ 
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: 'rgba(46, 125, 50, 0.1)',
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: '#2e7d32',
+                borderRadius: 4,
+                transition: 'transform 0.4s linear'
+              }
+            }}
+          />
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            align="center" 
+            sx={{ mt: 1 }}
+          >
+            {Math.round(progress)}%
+          </Typography>
+        </Paper>
+      )}
 
       <Paper 
         elevation={3} 
@@ -413,39 +485,17 @@ const QrScanner = () => {
         </Paper>
       )}
 
-      {apiResponse && (
-        <Card sx={{ mb: 3, borderRadius: 2 }}>
-          <CardContent>
-            <Typography 
-              variant="h6" 
-              align="center" 
-              sx={{ 
-                color: 'success.main',
-                fontWeight: 'bold',
-                mb: 2
-              }}
-            >
-              تم تسجيل النقاط بنجاح
-            </Typography>
-            {buildInfoRow("الاسم:", apiResponse.userData.name)}
-            {buildInfoRow("الفصل:", apiResponse.userData.class)}
-            {buildInfoRow("الفريق:", apiResponse.userData.team)}
-            <Divider sx={{ my: 2 }} />
-            {buildInfoRow("النقاط السابقة:", `${apiResponse.userData.previousScore} طوبة`, true)}
-            {buildInfoRow("النقاط الجديدة:", `${apiResponse.userData.newScore} طوبة`, true)}
-            <Typography 
-              align="center" 
-              sx={{ 
-                mt: 2,
-                color: 'primary.main',
-                fontWeight: 'bold'
-              }}
-            >
-              تم إضافة {selectedValue} طوبة
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
+      <Paper 
+        elevation={3}
+        sx={{ 
+          p: 3, 
+          mb: 3,
+          backgroundColor: 'white',
+          borderRadius: 2
+        }}
+      >
+        {/* ... existing Paper content ... */}
+      </Paper>
 
       <Snackbar
         open={!!error || success}
@@ -461,6 +511,31 @@ const QrScanner = () => {
           {success ? "تم حفظ جميع التحديثات بنجاح!" : error}
         </Alert>
       </Snackbar>
+
+      <Fab
+        color="primary"
+        aria-label="add"
+        onClick={() => router.push("/selector")}
+        sx={{
+          position: "fixed",
+          bottom: 16,
+          right: 16,
+          width: 56,
+          height: 56,
+          backgroundColor: "white",
+          "&:hover": {
+            backgroundColor: "grey.100",
+          },
+        }}
+      >
+        <Image
+          src="/splash.png"
+          alt="Selector"
+          width={32}
+          height={32}
+          style={{ objectFit: 'contain' }}
+        />
+      </Fab>
     </Box>
   );
 };

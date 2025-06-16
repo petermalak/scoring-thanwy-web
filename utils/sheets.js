@@ -5,13 +5,7 @@ import path from 'path';
 import { JWT } from 'google-auth-library';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-
-// Ensure we're using the same environment variable name throughout
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-
-if (!SPREADSHEET_ID) {
-  throw new Error('SPREADSHEET_ID environment variable is not set');
-}
+const SHEET_ID = process.env.SPREADSHEET_ID;
 
 const auth = new JWT({
   email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -36,7 +30,7 @@ const RETRY_CONFIG = {
 };
 
 // Cache for sheet data
-let sheetDataCache = null;
+let cachedSheetData = null;
 let lastFetchTime = null;
 const CACHE_DURATION_SHEET = 5 * 60 * 1000; // 5 minutes
 
@@ -116,32 +110,16 @@ export async function appendRow(sheetName, values) {
   );
 }
 
-// Get the first sheet name
-export async function getFirstSheetName() {
-  try {
-    const response = await sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID,
-    });
-    return response.data.sheets[0].properties.title;
-  } catch (error) {
-    console.error('Error getting sheet name:', error);
-    throw error;
-  }
-}
-
 export async function getSheetData() {
   try {
     // Check if we have valid cached data
-    if (sheetDataCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION_SHEET)) {
-      return sheetDataCache;
+    if (cachedSheetData && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION_SHEET)) {
+      return cachedSheetData;
     }
 
-    const sheetName = await getFirstSheetName();
-    console.log('Fetching data from sheet:', sheetName);
-
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:Z1000`,
+      spreadsheetId: SHEET_ID,
+      range: "AllUsers!A:F",
     });
 
     const rows = response.data.values || [];
@@ -150,23 +128,10 @@ export async function getSheetData() {
       return [];
     }
 
-    // Get headers from the first row
-    const headers = rows[0];
-    
-    // Transform the data into objects
-    const data = rows.slice(1).map(row => {
-      const obj = {};
-      headers.forEach((header, index) => {
-        obj[header.toLowerCase()] = row[index] || '';
-      });
-      return obj;
-    });
-
-    // Update cache
-    sheetDataCache = data;
+    cachedSheetData = rows;
     lastFetchTime = Date.now();
 
-    return data;
+    return rows;
   } catch (error) {
     console.error('Error fetching sheet data:', error);
     throw error;
@@ -177,7 +142,7 @@ export async function updateCell(sheetName, cell, value) {
   return withRetry(
     async () => {
       const response = await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
+        spreadsheetId: SHEET_ID,
         range: `${sheetName}!${cell}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
@@ -190,63 +155,13 @@ export async function updateCell(sheetName, cell, value) {
   );
 }
 
-export async function getHeaders() {
+export async function findRowByValue(value) {
   try {
-    const sheetName = await getFirstSheetName();
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:Z1`,
-    });
-
-    return response.data.values?.[0] || [];
+    const rows = await getSheetData();
+    const rowIndex = rows.findIndex((row) => row[1] === value);
+    return rowIndex !== -1 ? { rowIndex: rowIndex + 1, row: rows[rowIndex] } : null;
   } catch (error) {
-    console.error('Error fetching headers:', error);
-    throw error;
-  }
-}
-
-export async function findRowByValue(columnName, value) {
-  try {
-    console.log('Finding row with:', { columnName, value });
-    
-    const sheetName = await getFirstSheetName();
-    console.log('Using sheet:', sheetName);
-    
-    const headers = await getHeaders();
-    console.log('Sheet Headers:', headers);
-    
-    const columnIndex = headers.findIndex(h => h.toLowerCase() === columnName.toLowerCase());
-    console.log('Column Index:', columnIndex);
-    
-    if (columnIndex === -1) {
-      throw new Error(`Column "${columnName}" not found in sheet`);
-    }
-
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A1:Z1000`,
-    });
-
-    const rows = response.data.values || [];
-    console.log('Total rows:', rows.length);
-
-    if (rows.length === 0) {
-      throw new Error('No data found in sheet');
-    }
-
-    // Start from index 1 to skip header row
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (row[columnIndex] === value) {
-        console.log('Found matching row:', i + 1);
-        return i + 1; // Return 1-based row number
-      }
-    }
-
-    console.log('No matching row found');
-    return null;
-  } catch (error) {
-    console.error('Error in findRowByValue:', error);
+    console.error("Error finding row:", error);
     throw error;
   }
 }
@@ -259,7 +174,7 @@ export async function getRowData(sheetName, rowNumber) {
   return withRetry(
     async () => {
       const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
+        spreadsheetId: SHEET_ID,
         range: `${sheetName}!A${rowNumber}:Z${rowNumber}`,
         valueRenderOption: 'UNFORMATTED_VALUE',
       });
@@ -270,18 +185,24 @@ export async function getRowData(sheetName, rowNumber) {
 }
 
 export async function updateRowScore(rowIndex, newScore) {
-  if (!rowIndex) {
-    throw new Error('Row index is required');
-  }
+  try {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `AllUsers!F${rowIndex}`,
+      valueInputOption: "RAW",
+      resource: {
+        values: [[newScore]],
+      },
+    });
 
-  const sheetName = await getFirstSheetName();
-  const headers = await getHeaders();
-  const scoreColumnIndex = headers.findIndex(h => h.toLowerCase() === 'score');
-  
-  if (scoreColumnIndex === -1) {
-    throw new Error('Score column not found in sheet');
-  }
+    // Update cache if it exists
+    if (cachedSheetData && cachedSheetData[rowIndex - 1]) {
+      cachedSheetData[rowIndex - 1][5] = newScore;
+    }
 
-  const columnLetter = String.fromCharCode(65 + scoreColumnIndex); // Convert index to column letter
-  return updateCell(sheetName, `${columnLetter}${rowIndex}`, newScore);
+    return true;
+  } catch (error) {
+    console.error("Error updating score:", error);
+    throw error;
+  }
 }

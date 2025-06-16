@@ -6,7 +6,8 @@ import {
   findRowByValue, 
   getHeaders, 
   getRowData,
-  getFirstSheetName 
+  getFirstSheetName,
+  updateRowScore
 } from '../../utils/sheets';
 
 export default async function handler(req, res) {
@@ -39,111 +40,55 @@ export default async function handler(req, res) {
     });
   }
 
-  const { qrCode, selectedValue, timestamp } = req.body;
+  const { updates } = req.body;
 
-  if (!qrCode || !selectedValue) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!Array.isArray(updates)) {
+    return res.status(400).json({ message: "Invalid updates format" });
   }
 
-  const scoreToAdd = parseInt(selectedValue, 10);
-  if (isNaN(scoreToAdd)) {
-    return res.status(400).json({ error: 'Selected value must be a number' });
-  }
+  const results = [];
+  const errors = [];
 
-  try {
-    console.log('Received QR Code:', qrCode);
-    
-    // Get the sheet name first
-    const sheetName = await getFirstSheetName();
-    console.log('Using sheet:', sheetName);
-    
-    // Get headers and find row in parallel
-    const [headers, userRow] = await Promise.all([
-      getHeaders(),
-      findRowByValue('CodeValue', qrCode)
-    ]);
-
-    console.log('Headers:', headers);
-    console.log('User Row:', userRow);
-
-    if (!userRow) {
-      console.log('User not found for QR Code:', qrCode);
-      return res.status(404).json({ 
-        error: 'User not found',
-        details: `No user found with QR code: ${qrCode}`,
-        qrCode: qrCode
-      });
-    }
-
-    const idIndex = headers.indexOf('ID');
-    const scoreIndex = headers.indexOf('Score');
-    const nameIndex = headers.indexOf('Name');
-    const classIndex = headers.indexOf('Class');
-    const teamIndex = headers.indexOf('Team');
-
-    console.log('Column Indices:', {
-      idIndex,
-      scoreIndex,
-      nameIndex,
-      classIndex,
-      teamIndex
-    });
-
-    // Get real-time data for the user
-    const userData = await getRowData(sheetName, userRow);
-    console.log('User Data:', userData);
-
-    if (!userData) {
-      return res.status(404).json({ 
-        error: 'User data not found',
-        details: 'User row exists but data could not be retrieved',
-        qrCode: qrCode
-      });
-    }
-
-    const currentScore = parseInt(userData[scoreIndex], 10) || 0;
-    const newScore = currentScore + scoreToAdd;
-
-    console.log('Score Update:', {
-      currentScore,
-      scoreToAdd,
-      newScore
-    });
-
-    // Update score and log in parallel
-    await Promise.all([
-      // Update the score immediately
-      updateCell(sheetName, `${String.fromCharCode(65 + scoreIndex)}${userRow}`, newScore),
-      // Log the submission
-      appendRow('Logs', [
-        timestamp || new Date().toISOString(),
-        qrCode,
-        userData[nameIndex],
-        userData[classIndex],
-        userData[teamIndex],
-        scoreToAdd,
-        newScore,
-      ])
-    ]);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Score updated successfully',
-      data: {
-        name: userData[nameIndex],
-        class: userData[classIndex],
-        team: userData[teamIndex],
-        oldScore: currentScore,
-        newScore: newScore,
-        pointsAdded: scoreToAdd
+  for (const update of updates) {
+    try {
+      const { qrCode, selectedValue } = update;
+      
+      // Find the row for this code
+      const rowData = await findRowByValue(qrCode);
+      
+      if (!rowData) {
+        errors.push({
+          code: qrCode,
+          error: "Code not found"
+        });
+        continue;
       }
-    });
-  } catch (error) {
-    console.error('API Error:', error);
-    return res.status(500).json({ 
-      error: 'Internal Server Error',
-      details: error.message,
-      qrCode: qrCode
-    });
+
+      // Get current score and add new points
+      const currentScore = parseInt(rowData.row[5] || "0", 10);
+      const newScore = currentScore + parseInt(selectedValue, 10);
+
+      // Update the score
+      await updateRowScore(rowData.rowIndex, newScore);
+
+      results.push({
+        code: qrCode,
+        previousScore: currentScore,
+        newScore: newScore,
+        pointsAdded: selectedValue
+      });
+    } catch (error) {
+      console.error(`Error processing update for code ${update.qrCode}:`, error);
+      errors.push({
+        code: update.qrCode,
+        error: error.message
+      });
+    }
   }
+
+  return res.status(200).json({
+    success: true,
+    results,
+    errors: errors.length > 0 ? errors : undefined
+  });
 }
