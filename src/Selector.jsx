@@ -24,6 +24,7 @@ import {
   ListAlt as ListAltIcon,
   Search as SearchIcon
 } from '@mui/icons-material';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const Selector = () => {
   const [codes, setCodes] = useState([]);
@@ -42,6 +43,11 @@ const Selector = () => {
   const [headers, setHeaders] = useState(null);
   const [headersLastUpdated, setHeadersLastUpdated] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isOnline, setIsOnline] = useState(true);
+  const [syncQueue, setSyncQueue] = useState([]);
+  const [lastSyncAttempt, setLastSyncAttempt] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'queued' | 'error'
+  const [syncError, setSyncError] = useState(null);
   const router = useRouter();
 
   // Hardcoded headers
@@ -73,6 +79,33 @@ const Selector = () => {
 
     fetchCodes();
   }, []);
+
+  // Initialize online status after mount
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+  }, []);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (syncQueue.length > 0) {
+        handleSyncQueue();
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [syncQueue]);
 
   // Function to get headers with caching
   const getHeadersWithCache = async () => {
@@ -151,8 +184,8 @@ const Selector = () => {
     setSuccess(false);
   };
 
-  const syncUpdates = async () => {
-    if (pendingUpdates.length === 0) return;
+  const handleSyncQueue = async () => {
+    if (!isOnline || syncQueue.length === 0) return;
 
     setSyncing(true);
     setProgress(0);
@@ -160,10 +193,84 @@ const Selector = () => {
     setProcessedUsers({});
 
     try {
-      const response = await fetch("/api/submit", {
-        method: "POST",
+      // Process each update in the queue
+      for (let i = 0; i < syncQueue.length; i++) {
+        const update = syncQueue[i];
+        setCurrentUpdate(i + 1);
+        setProgress((i / syncQueue.length) * 100);
+
+        const response = await fetch('/api/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            updates: [{
+              qrCode: update.qrCode,
+              selectedValue: update.selectedValue
+            }]
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to submit score');
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to submit score');
+        }
+
+        // Update processed users cache
+        setProcessedUsers(prev => ({
+          ...prev,
+          [update.qrCode]: {
+            ...result.data,
+            lastUpdated: new Date().toISOString()
+          }
+        }));
+      }
+
+      // All updates processed successfully
+      setSuccess(true);
+      setSyncQueue([]);
+      setProcessedUsers({});
+      setProgress(100);
+      setCurrentUpdate(0);
+      setSyncStatus('idle');
+    } catch (error) {
+      console.error('Error syncing updates:', error);
+      setSyncError(error.message);
+      setSyncStatus('error');
+      // Keep failed updates in queue
+      setSyncQueue(prev => prev.slice(currentUpdate));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const syncUpdates = async () => {
+    if (pendingUpdates.length === 0) return;
+
+    if (!isOnline) {
+      setSyncQueue(prev => [...prev, ...pendingUpdates]);
+      setSyncStatus('queued');
+      setPendingUpdates([]);
+      return;
+    }
+
+    setSyncing(true);
+    setProgress(0);
+    setCurrentUpdate(0);
+    setProcessedUsers({});
+
+    try {
+      const response = await fetch('/api/submit', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           updates: pendingUpdates.map(update => ({
@@ -174,23 +281,30 @@ const Selector = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to sync updates");
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit score');
       }
 
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.success) {
+      if (result.success) {
         setSuccess(true);
         setPendingUpdates([]);
+        setProcessedUsers({});
+        setProgress(100);
+        setCurrentUpdate(0);
+        setSyncStatus('idle');
       } else {
-        throw new Error(data.message || "Failed to sync updates");
+        throw new Error(result.message || 'Failed to submit score');
       }
     } catch (error) {
-      console.error("Error syncing updates:", error);
-      setError(error.message);
+      console.error('Error syncing updates:', error);
+      setSyncError(error.message);
+      setSyncStatus('error');
+      setSyncQueue(prev => [...prev, ...pendingUpdates]);
+      setPendingUpdates([]);
     } finally {
       setSyncing(false);
-      setProgress(100);
     }
   };
 
@@ -326,6 +440,53 @@ const Selector = () => {
         إضافة النقاط
       </Typography>
 
+      {/* Network Status and Error Messages */}
+      <AnimatePresence>
+        {syncError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Alert 
+              severity="error" 
+              onClose={() => setSyncError(null)}
+              sx={{ mb: 2 }}
+            >
+              {syncError}
+            </Alert>
+          </motion.div>
+        )}
+        {!isOnline && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Alert 
+              severity="warning" 
+              sx={{ mb: 2 }}
+            >
+              أنت غير متصل بالإنترنت. سيتم حفظ التحديثات وتنفيذها عند عودة الاتصال.
+            </Alert>
+          </motion.div>
+        )}
+        {syncStatus === 'queued' && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Alert 
+              severity="info" 
+              sx={{ mb: 2 }}
+            >
+              لديك {syncQueue.length} تحديثات في الانتظار. سيتم تنفيذها عند عودة الاتصال.
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <Paper 
@@ -361,7 +522,7 @@ const Selector = () => {
                     value={selectedCode}
                     onChange={handleCodeChange}
                     options={codes.filter(code => !isCodeSelected(code))}
-                    getOptionLabel={(option) => `${option.code} - ${option.name} (${option.class})`}
+                    getOptionLabel={(option) => `${option.code}`}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -373,10 +534,7 @@ const Selector = () => {
                       <li {...props}>
                         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                           <Typography variant="body1">
-                            {option.code} - {option.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {option.class} - {option.team}
+                            {option.code}
                           </Typography>
                         </Box>
                       </li>
@@ -498,6 +656,8 @@ const Selector = () => {
                     <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
                     جاري المزامنة...
                   </>
+                ) : !isOnline ? (
+                  'حفظ في الانتظار'
                 ) : (
                   'مزامنة الكل'
                 )}

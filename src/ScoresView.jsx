@@ -36,6 +36,7 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  Checkbox,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -136,8 +137,9 @@ const ScoresView = () => {
 
   const filteredAndSortedScores = scores
     .filter(user => {
-      const matchesSearch = 
+      const matchesSearch = searchTerm === '' || 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.class.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.team.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -147,11 +149,19 @@ const ScoresView = () => {
       return matchesSearch && matchesClass && matchesTeam;
     })
     .sort((a, b) => {
-      if (sortDirection === 'asc') {
-        return a[sortField] > b[sortField] ? 1 : -1;
+      if (sortField === 'score') {
+        return sortDirection === 'asc' ? a.score - b.score : b.score - a.score;
       }
-      return a[sortField] < b[sortField] ? 1 : -1;
+      const aValue = a[sortField]?.toLowerCase() || '';
+      const bValue = b[sortField]?.toLowerCase() || '';
+      return sortDirection === 'asc' 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
     });
+
+  // Get unique classes and teams for filters
+  const uniqueClasses = [...new Set(scores.map(user => user.class))].filter(Boolean);
+  const uniqueTeams = [...new Set(scores.map(user => user.team))].filter(Boolean);
 
   const paginatedScores = filteredAndSortedScores.slice(
     (page - 1) * ITEMS_PER_PAGE,
@@ -683,13 +693,13 @@ const ScoresView = () => {
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="بحث عن مستخدم..."
+              placeholder="ابحث عن اسم، كود، فصل، أو فريق..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: theme.primary }} />
+                    <SearchIcon />
                   </InputAdornment>
                 ),
               }}
@@ -704,9 +714,9 @@ const ScoresView = () => {
                 label="الفصل"
               >
                 <MenuItem value="">الكل</MenuItem>
-                {Array.from(new Set(scores.map((score) => score.class))).map((cls) => (
-                  <MenuItem key={cls} value={cls}>
-                    {cls}
+                {uniqueClasses.map((className) => (
+                  <MenuItem key={className} value={className}>
+                    {className}
                   </MenuItem>
                 ))}
               </Select>
@@ -721,7 +731,7 @@ const ScoresView = () => {
                 label="الفريق"
               >
                 <MenuItem value="">الكل</MenuItem>
-                {Array.from(new Set(scores.map((score) => score.team))).map((team) => (
+                {uniqueTeams.map((team) => (
                   <MenuItem key={team} value={team}>
                     {team}
                   </MenuItem>
@@ -733,17 +743,8 @@ const ScoresView = () => {
             <Button
               fullWidth
               variant="outlined"
-              startIcon={<ClearIcon />}
               onClick={clearFilters}
-              sx={{ 
-                height: '100%',
-                borderColor: theme.primary,
-                color: theme.text.primary,
-                '&:hover': {
-                  borderColor: theme.primary,
-                  backgroundColor: theme.secondary,
-                }
-              }}
+              startIcon={<ClearIcon />}
             >
               مسح الفلاتر
             </Button>
@@ -784,176 +785,152 @@ const ScoresView = () => {
             <Typography>لا توجد نتائج</Typography>
           </Box>
         ) : viewMode === 'list' ? (
-          <>
-            <TableContainer component={Paper} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-              <Table>
+          <Paper 
+            sx={{ 
+              width: '100%', 
+              overflow: 'hidden',
+              borderRadius: 2,
+              boxShadow: 3,
+              margin: '0 auto'
+            }}
+          >
+            <TableContainer sx={{ 
+              maxHeight: 'calc(100vh - 300px)', 
+              overflowX: isMobile ? 'auto' : 'visible',
+              width: '100%',
+              minHeight: isMobile ? undefined : 1000
+            }}>
+              <Table stickyHeader size={isMobile ? "small" : "medium"} sx={{ width: '100%' }}>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: theme.secondary }}>
-                    <TableCell>الطالب</TableCell>
-                    <TableCell>الفصل</TableCell>
-                    <TableCell>الفريق</TableCell>
-                    <TableCell>النتيجة</TableCell>
+                  <TableRow sx={{ backgroundColor: '#f9f5e1' }}>
+                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الاسم</Typography>
+                        <SortButton column="name" label="الاسم" icon={<PersonIcon />} />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الفصل</Typography>
+                        <SortButton column="class" label="الفصل" icon={<SchoolIcon />} />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الفريق</Typography>
+                        <SortButton column="team" label="الفريق" icon={<GroupsIcon />} />
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">النقاط</Typography>
+                        <SortButton column="score" label="النقاط" icon={<ScoreIcon />} />
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredAndSortedScores.map((score) => (
-                    <React.Fragment key={score.id}>
-                      <TableRow
-                        hover
-                        onClick={() => handleRowClick(score.id)}
-                        sx={{
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          '&:hover': {
-                            backgroundColor: theme.secondary,
-                          },
-                        }}
-                      >
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Avatar
-                              src={score.avatar}
-                              alt={score.name}
-                              sx={{
-                                width: { xs: 32, sm: 36 },
-                                height: { xs: 32, sm: 36 },
-                                backgroundColor: getAvatarColor(score.name).bg,
-                                color: getAvatarColor(score.name).text,
-                                fontSize: { xs: '0.875rem', sm: '1rem' },
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                border: '2px solid',
-                                borderColor: 'transparent',
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  transform: 'scale(1.1)',
-                                  borderColor: theme.primary,
-                                },
-                              }}
-                            >
-                              {getInitials(score.name)}
-                            </Avatar>
-                            <Typography 
-                              sx={{ 
-                                fontSize: { xs: '0.875rem', sm: '1rem' },
-                                fontWeight: 500,
-                                color: theme.text.primary,
-                              }}
-                            >
-                              {score.name}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            icon={<SchoolIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />}
-                            label={score.class}
-                            size="small"
+                  {paginatedScores.map((user, index) => (
+                    <TableRow
+                      key={user.id}
+                      hover
+                      onClick={() => handleRowClick(user.id)}
+                      sx={{
+                        cursor: 'pointer',
+                        backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f5e1',
+                        '&:last-child td, &:last-child th': { border: 0 },
+                        '& td': {
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          fontSize: isMobile ? '0.875rem' : '1.1rem',
+                          borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+                          padding: isMobile ? '8px' : '16px 24px'
+                        },
+                        '&:hover': {
+                          backgroundColor: '#f9d95020'
+                        }
+                      }}
+                    >
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                          <Avatar
                             sx={{
-                              backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                              color: theme.primary,
-                              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                              height: { xs: 24, sm: 28 },
+                              bgcolor: getAvatarColor(user.name).bg,
+                              color: getAvatarColor(user.name).text,
+                              width: isMobile ? 28 : 40,
+                              height: isMobile ? 28 : 40,
+                              fontSize: isMobile ? '0.75rem' : '1rem',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                             }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            icon={<GroupsIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />}
-                            label={score.team}
-                            size="small"
+                          >
+                            {getInitials(user.name)}
+                          </Avatar>
+                          <Typography 
+                            noWrap 
+                            variant={isMobile ? "body2" : "body1"} 
+                            fontWeight="medium"
+                            sx={{ fontSize: isMobile ? '0.875rem' : '1.1rem' }}
+                          >
+                            {user.name}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={user.class}
+                          size={isMobile ? "small" : "medium"}
+                          sx={{
+                            backgroundColor: '#f9d95020',
+                            color: '#000000',
+                            fontWeight: 'medium',
+                            maxWidth: '100%',
+                            fontSize: isMobile ? '0.875rem' : '1rem',
+                            height: isMobile ? 24 : 32,
+                            '& .MuiChip-label': {
+                              px: isMobile ? 1 : 2
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={user.team}
+                          size={isMobile ? "small" : "medium"}
+                          sx={{
+                            backgroundColor: '#f9d95020',
+                            color: '#000000',
+                            fontWeight: 'medium',
+                            maxWidth: '100%',
+                            fontSize: isMobile ? '0.875rem' : '1rem',
+                            height: isMobile ? 24 : 32,
+                            '& .MuiChip-label': {
+                              px: isMobile ? 1 : 2
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
+                          {getScoreIcon(user.score)}
+                          <Typography
+                            variant={isMobile ? "body2" : "body1"}
                             sx={{
-                              backgroundColor: 'rgba(46, 125, 50, 0.1)',
-                              color: theme.success,
-                              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                              height: { xs: 24, sm: 28 },
+                              color: getScoreColor(user.score),
+                              fontWeight: 'bold',
+                              fontSize: isMobile ? '1rem' : '1.5rem'
                             }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography
-                              sx={{
-                                color: getScoreColor(score.score),
-                                fontWeight: 'bold',
-                                fontSize: { xs: '0.875rem', sm: '1rem' },
-                              }}
-                            >
-                              {score.score}
-                            </Typography>
-                            {score.score >= 50 ? (
-                              <TrendingUpIcon sx={{ 
-                                color: theme.success,
-                                fontSize: { xs: '1rem', sm: '1.25rem' }
-                              }} />
-                            ) : (
-                              <TrendingDownIcon sx={{ 
-                                color: theme.error,
-                                fontSize: { xs: '1rem', sm: '1.25rem' }
-                              }} />
-                            )}
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                      {expandedRow === score.id && (
-                        <TableRow>
-                          <TableCell colSpan={4} sx={{ backgroundColor: theme.secondary }}>
-                            <Box sx={{ p: { xs: 1, sm: 2 } }}>
-                              <Grid container spacing={2}>
-                                <Grid item xs={12}>
-                                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                                    التفاصيل
-                                  </Typography>
-                                  <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                    {score.details}
-                                  </Typography>
-                                </Grid>
-                                {score.notes && (
-                                  <Grid item xs={12}>
-                                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                                      الملاحظات
-                                    </Typography>
-                                    <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                      {score.notes}
-                                    </Typography>
-                                  </Grid>
-                                )}
-                              </Grid>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
+                          >
+                            {user.score}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </TableContainer>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-              <Pagination
-                count={Math.ceil(filteredAndSortedScores.length / ITEMS_PER_PAGE)}
-                page={page}
-                onChange={(e, value) => setPage(value)}
-                color="primary"
-                sx={{
-                  '& .MuiPaginationItem-root': {
-                    color: theme.text.primary,
-                  },
-                  '& .Mui-selected': {
-                    backgroundColor: theme.primary,
-                    color: theme.text.primary,
-                  },
-                }}
-              />
-            </Box>
-            <Typography
-              variant="body2"
-              color={theme.text.secondary}
-              align="center"
-              sx={{ mt: 2 }}
-            >
-              عرض {paginatedScores.length} من {filteredAndSortedScores.length} نتيجة
-            </Typography>
-          </>
+          </Paper>
         ) : (
           <Grid container spacing={2}>
             {paginatedScores.map((score) => (
@@ -1031,6 +1008,31 @@ const ScoresView = () => {
           </Grid>
         )}
       </Paper>
+
+      {/* Pagination */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(e, value) => setPage(value)}
+          color="primary"
+          size={isMobile ? "small" : "medium"}
+          showFirstButton
+          showLastButton
+          sx={{
+            '& .MuiPaginationItem-root': {
+              color: '#000000',
+            },
+            '& .Mui-selected': {
+              backgroundColor: '#f9d950',
+              color: '#000000',
+              '&:hover': {
+                backgroundColor: '#f9d95080',
+              }
+            }
+          }}
+        />
+      </Box>
     </Box>
   );
 };

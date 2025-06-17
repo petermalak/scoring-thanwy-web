@@ -17,17 +17,18 @@ export default async function handler(req, res) {
 
     const data = await getSheetData();
     
-    // Transform the data to match the expected format
-    const scores = data.map((row, index) => ({
+    // Skip the header row and transform the data
+    const scores = data.slice(1).map((row, index) => ({
       id: index + 1,
-      name: row.name || '',
-      class: row.class || '',
-      team: row.team || '',
-      score: parseInt(row.score || '0', 10),
-      details: row.details || '',
-      notes: row.notes || '',
-      date: row.date || new Date().toISOString(),
+      code: row[1] || '', // CodeValue is in column B
+      name: row[2] || '', // Name is in column C
+      class: row[3] || '', // Class is in column D
+      team: row[4] || '', // Team is in column E
+      score: parseInt(row[5] || '0', 10), // Score is in column F
     }));
+
+    // Sort by score in descending order
+    scores.sort((a, b) => b.score - a.score);
 
     res.status(200).json(scores);
   } catch (error) {

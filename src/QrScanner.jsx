@@ -14,6 +14,7 @@ import {
   QrCode as QrCodeIcon
 } from "@mui/icons-material";
 import Image from 'next/image';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const QrScanner = () => {
   const router = useRouter();
@@ -28,6 +29,11 @@ const QrScanner = () => {
   const [progress, setProgress] = useState(0);
   const [currentUpdate, setCurrentUpdate] = useState(0);
   const [processedUsers, setProcessedUsers] = useState({});
+  const [isOnline, setIsOnline] = useState(true);
+  const [syncQueue, setSyncQueue] = useState([]);
+  const [lastSyncAttempt, setLastSyncAttempt] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'queued' | 'error'
+  const [syncError, setSyncError] = useState(null);
 
   const webcamRef = useRef(null);
   const codeReader = useRef(null);
@@ -70,6 +76,33 @@ const QrScanner = () => {
       router.replace('/scanner', undefined, { shallow: true });
     }
   }, [router.query.codes, selectedValue]);
+
+  // Initialize online status after mount
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+  }, []);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (syncQueue.length > 0) {
+        handleSyncQueue();
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [syncQueue]);
 
   const startScanner = useCallback(async () => {
     setScanResult(null);
@@ -140,8 +173,8 @@ const QrScanner = () => {
     setPendingUpdates(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const syncUpdates = async () => {
-    if (pendingUpdates.length === 0) return;
+  const handleSyncQueue = async () => {
+    if (!isOnline || syncQueue.length === 0) return;
 
     setSyncing(true);
     setProgress(0);
@@ -149,7 +182,80 @@ const QrScanner = () => {
     setProcessedUsers({});
 
     try {
-      // Send all updates in a single request
+      // Process each update in the queue
+      for (let i = 0; i < syncQueue.length; i++) {
+        const update = syncQueue[i];
+        setCurrentUpdate(i + 1);
+        setProgress((i / syncQueue.length) * 100);
+
+        const response = await fetch('/api/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            updates: [{
+              qrCode: update.qrCode,
+              selectedValue: update.selectedValue
+            }]
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to submit score');
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to submit score');
+        }
+
+        // Update processed users cache
+        setProcessedUsers(prev => ({
+          ...prev,
+          [update.qrCode]: {
+            ...result.data,
+            lastUpdated: new Date().toISOString()
+          }
+        }));
+      }
+
+      // All updates processed successfully
+      setSuccess(true);
+      setSyncQueue([]);
+      setProcessedUsers({});
+      setProgress(100);
+      setCurrentUpdate(0);
+      setSyncStatus('idle');
+    } catch (error) {
+      console.error('Error syncing updates:', error);
+      setSyncError(error.message);
+      setSyncStatus('error');
+      // Keep failed updates in queue
+      setSyncQueue(prev => prev.slice(currentUpdate));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const syncUpdates = async () => {
+    if (pendingUpdates.length === 0) return;
+
+    if (!isOnline) {
+      setSyncQueue(prev => [...prev, ...pendingUpdates]);
+      setSyncStatus('queued');
+      setPendingUpdates([]);
+      return;
+    }
+
+    setSyncing(true);
+    setProgress(0);
+    setCurrentUpdate(0);
+    setProcessedUsers({});
+
+    try {
       const response = await fetch('/api/submit', {
         method: 'POST',
         headers: {
@@ -176,12 +282,16 @@ const QrScanner = () => {
         setProcessedUsers({});
         setProgress(100);
         setCurrentUpdate(0);
+        setSyncStatus('idle');
       } else {
         throw new Error(result.message || 'Failed to submit score');
       }
     } catch (error) {
       console.error('Error syncing updates:', error);
-      setError(error.message || 'Failed to submit score');
+      setSyncError(error.message);
+      setSyncStatus('error');
+      setSyncQueue(prev => [...prev, ...pendingUpdates]);
+      setPendingUpdates([]);
     } finally {
       setSyncing(false);
     }
@@ -219,6 +329,53 @@ const QrScanner = () => {
       backgroundColor: theme.background,
       minHeight: '100vh'
     }}>
+      {/* Network Status and Error Messages */}
+      <AnimatePresence>
+        {syncError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Alert 
+              severity="error" 
+              onClose={() => setSyncError(null)}
+              sx={{ mb: 2 }}
+            >
+              {syncError}
+            </Alert>
+          </motion.div>
+        )}
+        {!isOnline && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Alert 
+              severity="warning" 
+              sx={{ mb: 2 }}
+            >
+              أنت غير متصل بالإنترنت. سيتم حفظ التحديثات وتنفيذها عند عودة الاتصال.
+            </Alert>
+          </motion.div>
+        )}
+        {syncStatus === 'queued' && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Alert 
+              severity="info" 
+              sx={{ mb: 2 }}
+            >
+              لديك {syncQueue.length} تحديثات في الانتظار. سيتم تنفيذها عند عودة الاتصال.
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <Button
           variant="contained"
@@ -455,6 +612,8 @@ const QrScanner = () => {
                   <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
                   جاري المزامنة...
                 </>
+              ) : !isOnline ? (
+                'حفظ في الانتظار'
               ) : (
                 'مزامنة الكل'
               )}
@@ -484,18 +643,6 @@ const QrScanner = () => {
           </List>
         </Paper>
       )}
-
-      <Paper 
-        elevation={3}
-        sx={{ 
-          p: 3, 
-          mb: 3,
-          backgroundColor: 'white',
-          borderRadius: 2
-        }}
-      >
-        {/* ... existing Paper content ... */}
-      </Paper>
 
       <Snackbar
         open={!!error || success}
