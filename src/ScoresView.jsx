@@ -57,8 +57,28 @@ import {
   ExpandLess as ExpandLessIcon,
   ViewModule as ViewModuleIcon,
   ViewList as ViewListIcon,
+  BarChart as BarChartIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend,
+} from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  ChartTooltip,
+  Legend
+);
 
 const ITEMS_PER_PAGE = 10;
 
@@ -515,20 +535,6 @@ const ScoresView = () => {
                 <RefreshIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title={viewMode === 'list' ? 'عرض الشبكة' : 'عرض القائمة'}>
-              <IconButton
-                onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-                sx={{
-                  color: theme.primary,
-                  transition: 'all 0.3s',
-                  '&:hover': {
-                    backgroundColor: theme.secondary,
-                  },
-                }}
-              >
-                {viewMode === 'list' ? <ViewModuleIcon /> : <ViewListIcon />}
-              </IconButton>
-            </Tooltip>
           </Box>
         </Box>
       </Fade>
@@ -643,41 +649,6 @@ const ScoresView = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="إجمالي المستخدمين"
-            value={scores.length}
-            icon={<GroupsIcon sx={{ fontSize: 30 }} />}
-            delay={100}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="متوسط النقاط"
-            value={Math.round(scores.reduce((sum, user) => sum + user.score, 0) / scores.length)}
-            icon={<NumbersIcon sx={{ fontSize: 30 }} />}
-            delay={200}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="أعلى نقاط"
-            value={Math.max(...scores.map(user => user.score))}
-            icon={<TrophyIcon sx={{ fontSize: 30 }} />}
-            delay={300}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="إجمالي النقاط"
-            value={scores.reduce((sum, user) => sum + user.score, 0)}
-            icon={<ScoreIcon sx={{ fontSize: 30 }} />}
-            delay={400}
-          />
-        </Grid>
-      </Grid>
 
       <Paper
         elevation={3}
@@ -1033,6 +1004,154 @@ const ScoresView = () => {
           }}
         />
       </Box>
+
+      {/* Team Scores Bar Chart - Separate Component */}
+      {(() => {
+        // Group scores by team, excluding entries without team names
+        const teamScores = scores
+          .filter(user => user.team && user.team.trim() !== '')
+          .reduce((acc, user) => {
+            if (!acc[user.team]) {
+              acc[user.team] = 0;
+            }
+            acc[user.team] += user.score;
+            return acc;
+          }, {});
+
+        const chartData = {
+          labels: Object.keys(teamScores),
+          datasets: [
+            {
+              label: 'إجمالي النقاط',
+              data: Object.values(teamScores),
+              backgroundColor: [
+                '#f9d950',
+                '#4caf50',
+                '#2196f3',
+                '#ff9800',
+                '#9c27b0',
+                '#e91e63',
+                '#00bcd4',
+                '#795548',
+                '#607d8b',
+                '#ff5722',
+              ],
+              borderColor: [
+                '#f9d950',
+                '#4caf50',
+                '#2196f3',
+                '#ff9800',
+                '#9c27b0',
+                '#e91e63',
+                '#00bcd4',
+                '#795548',
+                '#607d8b',
+                '#ff5722',
+              ],
+              borderWidth: 2,
+              borderRadius: 8,
+              borderSkipped: false,
+            },
+          ],
+        };
+
+        const chartOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false,
+            },
+            title: {
+              display: true,
+              text: 'إجمالي النقاط حسب الفريق',
+              font: {
+                size: 16,
+                weight: 'bold',
+              },
+              color: '#000000',
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#f9d950',
+              borderWidth: 1,
+              cornerRadius: 8,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return `النقاط: ${context.parsed.y}`;
+                },
+              },
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0, 0, 0, 0.1)',
+              },
+              ticks: {
+                color: '#000000',
+                font: {
+                  weight: 'bold',
+                },
+              },
+              title: {
+                display: true,
+                text: 'النقاط',
+                color: '#000000',
+                font: {
+                  weight: 'bold',
+                },
+              },
+            },
+            x: {
+              grid: {
+                color: 'rgba(0, 0, 0, 0.1)',
+              },
+              ticks: {
+                color: '#000000',
+                font: {
+                  weight: 'bold',
+                },
+              },
+              title: {
+                display: true,
+                text: 'الفريق',
+                color: '#000000',
+                font: {
+                  weight: 'bold',
+                },
+              },
+            },
+          },
+        };
+
+        return Object.keys(teamScores).length > 0 ? (
+          <Paper
+            elevation={3}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              backgroundColor: theme.background.paper,
+              mb: 4,
+              mt: 4,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <BarChartIcon sx={{ color: theme.primary, fontSize: 30 }} />
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.text.primary }}>
+                إحصائيات الفرق
+              </Typography>
+            </Box>
+            <Box sx={{ height: 400, width: '100%' }}>
+              <Bar data={chartData} options={chartOptions} />
+            </Box>
+          </Paper>
+        ) : null;
+      })()}
     </Box>
   );
 };
