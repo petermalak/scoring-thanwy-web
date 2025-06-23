@@ -980,31 +980,6 @@ const ScoresView = () => {
         )}
       </Paper>
 
-      {/* Pagination */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-        <Pagination
-          count={totalPages}
-          page={page}
-          onChange={(e, value) => setPage(value)}
-          color="primary"
-          size={isMobile ? "small" : "medium"}
-          showFirstButton
-          showLastButton
-          sx={{
-            '& .MuiPaginationItem-root': {
-              color: '#000000',
-            },
-            '& .Mui-selected': {
-              backgroundColor: '#f9d950',
-              color: '#000000',
-              '&:hover': {
-                backgroundColor: '#f9d95080',
-              }
-            }
-          }}
-        />
-      </Box>
-
       {/* Team Scores Bar Chart - Separate Component */}
       {(() => {
         // Group scores by team, excluding entries without team names
@@ -1152,6 +1127,31 @@ const ScoresView = () => {
           </Paper>
         ) : null;
       })()}
+
+      {/* Pagination */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(e, value) => setPage(value)}
+          color="primary"
+          size={isMobile ? "small" : "medium"}
+          showFirstButton
+          showLastButton
+          sx={{
+            '& .MuiPaginationItem-root': {
+              color: '#000000',
+            },
+            '& .Mui-selected': {
+              backgroundColor: '#f9d950',
+              color: '#000000',
+              '&:hover': {
+                backgroundColor: '#f9d95080',
+              }
+            }
+          }}
+        />
+      </Box>
     </Box>
   );
 };
