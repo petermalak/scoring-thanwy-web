@@ -107,9 +107,6 @@ const ScoresView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('score');
-  const [sortDirection, setSortDirection] = useState('desc');
-  const [selectedClass, setSelectedClass] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('');
   const [expandedRow, setExpandedRow] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -133,62 +130,38 @@ const ScoresView = () => {
     }
   };
 
-  const handleSort = (key) => {
-    setSortField(key);
-    setSortDirection(prevDirection => prevDirection === 'asc' ? 'desc' : 'asc');
-  };
-
-  const handleFilterChange = (filterType, value) => {
-    if (filterType === 'class') {
-      setSelectedClass(value);
-    } else if (filterType === 'team') {
-      setSelectedTeam(value);
-    }
-    setSearchTerm('');
-    setPage(1);
+  const handleFilterChange = (value) => {
+    setSelectedTeam(value);
   };
 
   const clearFilters = () => {
-    setSelectedClass('');
     setSelectedTeam('');
     setSearchTerm('');
     setPage(1);
   };
 
-  const filteredAndSortedScores = scores
+  const filteredScores = scores
     .filter(user => {
       const matchesSearch = searchTerm === '' || 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.class.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.team.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesClass = !selectedClass || user.class === selectedClass;
       const matchesTeam = !selectedTeam || user.team === selectedTeam;
 
-      return matchesSearch && matchesClass && matchesTeam;
+      return matchesSearch && matchesTeam;
     })
-    .sort((a, b) => {
-      if (sortField === 'score') {
-        return sortDirection === 'asc' ? a.score - b.score : b.score - a.score;
-      }
-      const aValue = a[sortField]?.toLowerCase() || '';
-      const bValue = b[sortField]?.toLowerCase() || '';
-      return sortDirection === 'asc' 
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
-    });
+    .sort((a, b) => b.score - a.score); // Always sort by score in descending order
 
-  // Get unique classes and teams for filters
-  const uniqueClasses = [...new Set(scores.map(user => user.class))].filter(Boolean);
+  // Get unique teams for filter
   const uniqueTeams = [...new Set(scores.map(user => user.team))].filter(Boolean);
 
-  const paginatedScores = filteredAndSortedScores.slice(
+  const paginatedScores = filteredScores.slice(
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE
   );
 
-  const totalPages = Math.ceil(filteredAndSortedScores.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredScores.length / ITEMS_PER_PAGE);
 
   const getScoreColor = (score) => {
     if (score >= 100) return theme.success;
@@ -285,12 +258,12 @@ const ScoresView = () => {
   };
 
   const SortButton = ({ column, label, icon }) => {
-    const isActive = sortField === column;
+    const isActive = column === 'score';
     const color = isActive ? theme.primary : theme.text.secondary;
 
     return (
       <Box
-        onClick={() => handleSort(column)}
+        onClick={() => {}}
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -350,7 +323,7 @@ const ScoresView = () => {
               color: theme.primary,
               ml: 0.5,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              transform: sortDirection === 'asc' ? 'rotate(0deg)' : 'rotate(180deg)',
+              transform: 'rotate(180deg)',
             }}
           >
             <TrendingUpIcon fontSize="small" />
@@ -430,41 +403,14 @@ const ScoresView = () => {
           </Grid>
           <Grid item xs={12}>
             <FormControl fullWidth>
-              <InputLabel>الفصل</InputLabel>
-              <Select
-                value={selectedClass}
-                onChange={(e) => handleFilterChange('class', e.target.value)}
-                label="الفصل"
-                startAdornment={
-                  <InputAdornment position="start">
-                    <SchoolIcon sx={{ color: theme.primary }} />
-                  </InputAdornment>
-                }
-              >
-                <MenuItem value="">الكل</MenuItem>
-                {Array.from(new Set(scores.map((score) => score.class))).map((cls) => (
-                  <MenuItem key={cls} value={cls}>
-                    {cls}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <FormControl fullWidth>
               <InputLabel>الفريق</InputLabel>
               <Select
                 value={selectedTeam}
-                onChange={(e) => handleFilterChange('team', e.target.value)}
+                onChange={(e) => handleFilterChange(e.target.value)}
                 label="الفريق"
-                startAdornment={
-                  <InputAdornment position="start">
-                    <GroupsIcon sx={{ color: theme.primary }} />
-                  </InputAdornment>
-                }
               >
                 <MenuItem value="">الكل</MenuItem>
-                {Array.from(new Set(scores.map((score) => score.team))).map((team) => (
+                {uniqueTeams.map((team) => (
                   <MenuItem key={team} value={team}>
                     {team}
                   </MenuItem>
@@ -603,29 +549,14 @@ const ScoresView = () => {
                   sx={{ mb: 2 }}
                 />
                 <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                  <InputLabel>الفصل</InputLabel>
-                  <Select
-                    value={selectedClass}
-                    onChange={(e) => handleFilterChange('class', e.target.value)}
-                    label="الفصل"
-                  >
-                    <MenuItem value="">الكل</MenuItem>
-                    {Array.from(new Set(scores.map((score) => score.class))).map((cls) => (
-                      <MenuItem key={cls} value={cls}>
-                        {cls}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                   <InputLabel>الفريق</InputLabel>
                   <Select
                     value={selectedTeam}
-                    onChange={(e) => handleFilterChange('team', e.target.value)}
+                    onChange={(e) => handleFilterChange(e.target.value)}
                     label="الفريق"
                   >
                     <MenuItem value="">الكل</MenuItem>
-                    {Array.from(new Set(scores.map((score) => score.team))).map((team) => (
+                    {uniqueTeams.map((team) => (
                       <MenuItem key={team} value={team}>
                         {team}
                       </MenuItem>
@@ -637,7 +568,6 @@ const ScoresView = () => {
                   variant="outlined"
                   onClick={() => {
                     setSearchTerm('');
-                    setSelectedClass('');
                     setSelectedTeam('');
                   }}
                   startIcon={<ClearIcon />}
@@ -660,11 +590,11 @@ const ScoresView = () => {
         }}
       >
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="ابحث عن اسم، كود، فصل، أو فريق..."
+              placeholder="ابحث عن اسم، كود، أو فريق..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -676,29 +606,12 @@ const ScoresView = () => {
               }}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>الفصل</InputLabel>
-              <Select
-                value={selectedClass}
-                onChange={(e) => handleFilterChange('class', e.target.value)}
-                label="الفصل"
-              >
-                <MenuItem value="">الكل</MenuItem>
-                {uniqueClasses.map((className) => (
-                  <MenuItem key={className} value={className}>
-                    {className}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <FormControl fullWidth>
               <InputLabel>الفريق</InputLabel>
               <Select
                 value={selectedTeam}
-                onChange={(e) => handleFilterChange('team', e.target.value)}
+                onChange={(e) => handleFilterChange(e.target.value)}
                 label="الفريق"
               >
                 <MenuItem value="">الكل</MenuItem>
@@ -722,24 +635,14 @@ const ScoresView = () => {
           </Grid>
         </Grid>
 
-        {Object.values({ class: selectedClass, team: selectedTeam }).some(Boolean) && (
+        {selectedTeam && (
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-            {selectedClass && (
-              <Chip
-                icon={<SchoolIcon />}
-                label={`الفصل: ${selectedClass}`}
-                onDelete={() => handleFilterChange('class', '')}
-                sx={{ backgroundColor: theme.secondary }}
-              />
-            )}
-            {selectedTeam && (
-              <Chip
-                icon={<GroupsIcon />}
-                label={`الفريق: ${selectedTeam}`}
-                onDelete={() => handleFilterChange('team', '')}
-                sx={{ backgroundColor: theme.secondary }}
-              />
-            )}
+            <Chip
+              icon={<GroupsIcon />}
+              label={`الفريق: ${selectedTeam}`}
+              onDelete={() => handleFilterChange('')}
+              sx={{ backgroundColor: theme.secondary }}
+            />
           </Stack>
         )}
 
@@ -751,7 +654,7 @@ const ScoresView = () => {
           <Box sx={{ textAlign: 'center', p: 4 }}>
             <Typography color="error">{error}</Typography>
           </Box>
-        ) : filteredAndSortedScores.length === 0 ? (
+        ) : filteredScores.length === 0 ? (
           <Box sx={{ textAlign: 'center', p: 4 }}>
             <Typography>لا توجد نتائج</Typography>
           </Box>
@@ -773,30 +676,15 @@ const ScoresView = () => {
             }}>
               <Table stickyHeader size={isMobile ? "small" : "medium"} sx={{ width: '100%' }}>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f9f5e1' }}>
+                  <TableRow>
                     <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الاسم</Typography>
-                        <SortButton column="name" label="الاسم" icon={<PersonIcon />} />
-                      </Box>
+                      <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الاسم</Typography>
                     </TableCell>
                     <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الفصل</Typography>
-                        <SortButton column="class" label="الفصل" icon={<SchoolIcon />} />
-                      </Box>
+                      <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الفريق</Typography>
                     </TableCell>
                     <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الفريق</Typography>
-                        <SortButton column="team" label="الفريق" icon={<GroupsIcon />} />
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">النقاط</Typography>
-                        <SortButton column="score" label="النقاط" icon={<ScoreIcon />} />
-                      </Box>
+                      <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">النقاط</Typography>
                     </TableCell>
                   </TableRow>
                 </TableHead>
@@ -846,23 +734,6 @@ const ScoresView = () => {
                             {user.name}
                           </Typography>
                         </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={user.class}
-                          size={isMobile ? "small" : "medium"}
-                          sx={{
-                            backgroundColor: '#f9d95020',
-                            color: '#000000',
-                            fontWeight: 'medium',
-                            maxWidth: '100%',
-                            fontSize: isMobile ? '0.875rem' : '1rem',
-                            height: isMobile ? 24 : 32,
-                            '& .MuiChip-label': {
-                              px: isMobile ? 1 : 2
-                            }
-                          }}
-                        />
                       </TableCell>
                       <TableCell align="center">
                         <Chip
