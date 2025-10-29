@@ -15,6 +15,7 @@ import {
 } from "@mui/icons-material";
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
+import { pointsOptions, zaghlolTheme } from './pointsConfig';
 
 const QrScanner = () => {
   const router = useRouter();
@@ -42,12 +43,8 @@ const QrScanner = () => {
   // Hardcoded headers
   const HEADERS = ['ID', 'CodeValue', 'Name', 'Class', 'Team', 'Score'];
 
-  // Custom theme colors
-  const theme = {
-    primary: '#f9d950',
-    background: '#f9f5e1',
-    text: '#000000',
-  };
+  // Use Mr. Zaghlol theme
+  const theme = zaghlolTheme;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -382,11 +379,18 @@ const QrScanner = () => {
           startIcon={<QrCodeIcon />}
           onClick={() => router.push('/selector')}
           sx={{
-            bgcolor: theme.primary,
-            color: theme.text,
+            bgcolor: theme.accent,
+            color: theme.surface,
+            borderRadius: theme.borderRadius,
+            px: 3,
+            py: 1.5,
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
             '&:hover': {
-              bgcolor: theme.primary,
-              opacity: 0.9
+              bgcolor: theme.accent,
+              opacity: 0.9,
+              transform: 'translateY(-2px)',
+              boxShadow: `0 4px 12px ${theme.accent}40`
             }
           }}
         >
@@ -444,8 +448,12 @@ const QrScanner = () => {
           p: 2, 
           mb: 3, 
           position: "relative",
-          borderRadius: 2,
-          overflow: 'hidden'
+          borderRadius: theme.borderRadiusLarge,
+          overflow: 'hidden',
+          border: `2px solid ${theme.primary}20`,
+          '&:hover': {
+            boxShadow: `0 8px 24px ${theme.primary}30`
+          }
         }}
       >
         <Box sx={{ position: 'relative', aspectRatio: '1' }}>
@@ -499,9 +507,19 @@ const QrScanner = () => {
             sx={{
               bgcolor: theme.primary,
               color: theme.text,
+              borderRadius: theme.borderRadius,
+              px: 3,
+              py: 1.5,
+              fontWeight: 'bold',
               '&:hover': {
                 bgcolor: theme.primary,
-                opacity: 0.9
+                opacity: 0.9,
+                transform: 'translateY(-2px)',
+                boxShadow: `0 4px 12px ${theme.primary}40`
+              },
+              '&:disabled': {
+                bgcolor: theme.textSecondary,
+                color: theme.surface
               }
             }}
           >
@@ -513,11 +531,21 @@ const QrScanner = () => {
             onClick={stopScanner}
             disabled={!isScanning}
             sx={{
-              bgcolor: theme.primary,
-              color: theme.text,
+              bgcolor: theme.accent,
+              color: theme.surface,
+              borderRadius: theme.borderRadius,
+              px: 3,
+              py: 1.5,
+              fontWeight: 'bold',
               '&:hover': {
-                bgcolor: theme.primary,
-                opacity: 0.9
+                bgcolor: theme.accent,
+                opacity: 0.9,
+                transform: 'translateY(-2px)',
+                boxShadow: `0 4px 12px ${theme.accent}40`
+              },
+              '&:disabled': {
+                bgcolor: theme.textSecondary,
+                color: theme.surface
               }
             }}
           >
@@ -527,40 +555,65 @@ const QrScanner = () => {
       </Paper>
 
       {scanResult && (
-        <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+        <Paper elevation={3} sx={{ 
+          p: 2, 
+          mb: 3, 
+          borderRadius: theme.borderRadiusLarge,
+          border: `2px solid ${theme.secondary}20`,
+          '&:hover': {
+            boxShadow: `0 8px 24px ${theme.secondary}30`
+          }
+        }}>
+          <Typography variant="h6" sx={{ 
+            mb: 2, 
+            fontWeight: 'bold',
+            color: theme.text
+          }}>
             تم مسح: {scanResult}
           </Typography>
 
           <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>اختيار النقاط</InputLabel>
+            <InputLabel sx={{ color: theme.text }}>اختيار النقاط</InputLabel>
             <Select
               value={selectedValue}
               onChange={handleValueChange}
               label="اختيار النقاط"
               sx={{
-                bgcolor: 'white',
-                borderRadius: 2
+                bgcolor: theme.surface,
+                borderRadius: theme.borderRadius,
+                border: `2px solid ${theme.secondary}40`,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  border: 'none'
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  border: 'none'
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  border: `2px solid ${theme.accent}`
+                }
               }}
             >
-              <MenuItem value="50">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ConstructionIcon sx={{ color: 'yellow' }} />
-                  <Typography>حضور اول ١٠ دقايق = ٥٠ طوبة</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value="25">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ConstructionIcon sx={{ color: 'yellow' }} />
-                  <Typography>حضور تاني ١٠ دقايق = ٢٥ طوبة</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value="10">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ConstructionIcon sx={{ color: 'yellow' }} />
-                  <Typography>مشاركة في الموضوع = ١٠ طوبات</Typography>
-                </Box>
-              </MenuItem>
+              {pointsOptions.map(option => (
+                <MenuItem key={option.key} value={String(option.value)}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ 
+                      width: 24, 
+                      height: 24, 
+                      borderRadius: '50%', 
+                      bgcolor: theme.secondary,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: theme.text
+                    }}>
+                      ز
+                    </Box>
+                    <Typography sx={{ color: theme.text, fontWeight: '500' }}>{option.label}</Typography>
+                  </Box>
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
 
@@ -575,10 +628,18 @@ const QrScanner = () => {
               bgcolor: theme.primary,
               color: theme.text,
               height: 50,
-              borderRadius: 2,
+              borderRadius: theme.borderRadius,
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
               '&:hover': {
                 bgcolor: theme.primary,
-                opacity: 0.9
+                opacity: 0.9,
+                transform: 'translateY(-2px)',
+                boxShadow: `0 4px 12px ${theme.primary}40`
+              },
+              '&:disabled': {
+                bgcolor: theme.textSecondary,
+                color: theme.surface
               }
             }}
           >
@@ -588,9 +649,17 @@ const QrScanner = () => {
       )}
 
       {pendingUpdates.length > 0 && (
-        <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Paper elevation={3} sx={{ 
+          p: 2, 
+          mb: 3, 
+          borderRadius: theme.borderRadiusLarge,
+          border: `2px solid ${theme.accent}20`,
+          '&:hover': {
+            boxShadow: `0 8px 24px ${theme.accent}30`
+          }
+        }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">
+            <Typography variant="h6" sx={{ color: theme.text, fontWeight: 'bold' }}>
               التحديثات المعلقة ({pendingUpdates.length})
             </Typography>
             <Button
@@ -599,11 +668,21 @@ const QrScanner = () => {
               onClick={syncUpdates}
               disabled={syncing}
               sx={{
-                bgcolor: theme.primary,
-                color: theme.text,
+                bgcolor: theme.accent,
+                color: theme.surface,
+                borderRadius: theme.borderRadius,
+                px: 2,
+                py: 1,
+                fontWeight: 'bold',
                 '&:hover': {
-                  bgcolor: theme.primary,
-                  opacity: 0.9
+                  bgcolor: theme.accent,
+                  opacity: 0.9,
+                  transform: 'translateY(-1px)',
+                  boxShadow: `0 4px 12px ${theme.accent}40`
+                },
+                '&:disabled': {
+                  bgcolor: theme.textSecondary,
+                  color: theme.surface
                 }
               }}
             >
@@ -625,7 +704,7 @@ const QrScanner = () => {
                 <ListItem>
                   <ListItemText
                     primary={update.qrCode}
-                    secondary={`النقاط: ${update.selectedValue} طوبة`}
+                    secondary={`النقاط: ${update.selectedValue} زغلول`}
                   />
                   <ListItemSecondaryAction>
                     <IconButton

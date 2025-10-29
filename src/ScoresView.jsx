@@ -70,6 +70,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import { zaghlolTheme } from './pointsConfig';
 
 ChartJS.register(
   CategoryScale,
@@ -82,23 +83,8 @@ ChartJS.register(
 
 const ITEMS_PER_PAGE = 10;
 
-// Define theme colors
-const theme = {
-  primary: '#f9d950',
-  secondary: '#f9f5e1',
-  success: '#4caf50',
-  info: '#2196f3',
-  warning: '#ff9800',
-  error: '#f44336',
-  text: {
-    primary: '#000000',
-    secondary: '#666666',
-  },
-  background: {
-    default: '#f9f5e1',
-    paper: '#ffffff',
-  },
-};
+// Use Mr. Zaghlol theme
+const theme = zaghlolTheme;
 
 const ScoresView = () => {
   const muiTheme = useTheme();
@@ -186,14 +172,14 @@ const ScoresView = () => {
 
   const getAvatarColor = (name) => {
     const colors = [
-      { bg: theme.primary, text: '#ffffff' },
-      { bg: theme.success, text: '#ffffff' },
-      { bg: theme.info, text: '#ffffff' },
-      { bg: theme.warning, text: '#ffffff' },
-      { bg: '#9c27b0', text: '#ffffff' },
-      { bg: '#e91e63', text: '#ffffff' },
-      { bg: '#00bcd4', text: '#ffffff' },
-      { bg: '#795548', text: '#ffffff' },
+      { bg: theme.primary, text: theme.surface },
+      { bg: theme.success, text: theme.surface },
+      { bg: theme.accent, text: theme.surface },
+      { bg: theme.warning, text: theme.surface },
+      { bg: theme.secondary, text: theme.text },
+      { bg: '#9c27b0', text: theme.surface },
+      { bg: '#e91e63', text: theme.surface },
+      { bg: '#00bcd4', text: theme.surface },
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -259,7 +245,7 @@ const ScoresView = () => {
 
   const SortButton = ({ column, label, icon }) => {
     const isActive = column === 'score';
-    const color = isActive ? theme.primary : theme.text.secondary;
+    const color = isActive ? theme.primary : theme.textSecondary;
 
     return (
       <Box
@@ -445,7 +431,7 @@ const ScoresView = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: theme.background.default,
+        backgroundColor: theme.background,
         py: 4,
         px: { xs: 2, md: 4 },
       }}
@@ -677,13 +663,13 @@ const ScoresView = () => {
               <Table stickyHeader size={isMobile ? "small" : "medium"} sx={{ width: '100%' }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                    <TableCell align="center" sx={{ borderBottom: `2px solid ${theme.primary}`, padding: isMobile ? '8px' : '16px 24px' }}>
                       <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الاسم</Typography>
                     </TableCell>
-                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                    <TableCell align="center" sx={{ borderBottom: `2px solid ${theme.primary}`, padding: isMobile ? '8px' : '16px 24px' }}>
                       <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">الفريق</Typography>
                     </TableCell>
-                    <TableCell align="center" sx={{ borderBottom: '2px solid #f9d950', padding: isMobile ? '8px' : '16px 24px' }}>
+                    <TableCell align="center" sx={{ borderBottom: `2px solid ${theme.primary}`, padding: isMobile ? '8px' : '16px 24px' }}>
                       <Typography variant={isMobile ? "body2" : "h6"} fontWeight="bold">النقاط</Typography>
                     </TableCell>
                   </TableRow>
@@ -696,7 +682,7 @@ const ScoresView = () => {
                       onClick={() => handleRowClick(user.id)}
                       sx={{
                         cursor: 'pointer',
-                        backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f5e1',
+                        backgroundColor: index % 2 === 0 ? theme.surface || '#ffffff' : theme.background,
                         '&:last-child td, &:last-child th': { border: 0 },
                         '& td': {
                           whiteSpace: 'nowrap',
@@ -707,7 +693,7 @@ const ScoresView = () => {
                           padding: isMobile ? '8px' : '16px 24px'
                         },
                         '&:hover': {
-                          backgroundColor: '#f9d95020'
+                          backgroundColor: `${theme.primary}20`
                         }
                       }}
                     >
@@ -740,7 +726,7 @@ const ScoresView = () => {
                           label={user.team}
                           size={isMobile ? "small" : "medium"}
                           sx={{
-                            backgroundColor: '#f9d95020',
+                            backgroundColor: `${theme.primary}20`,
                             color: '#000000',
                             fontWeight: 'medium',
                             maxWidth: '100%',
@@ -871,10 +857,10 @@ const ScoresView = () => {
               label: 'إجمالي النقاط',
               data: Object.values(teamScores),
               backgroundColor: [
-                '#f9d950',
+                theme.primary,
                 '#4caf50',
                 '#2196f3',
-                '#ff9800',
+                theme.accent,
                 '#9c27b0',
                 '#e91e63',
                 '#00bcd4',
@@ -883,10 +869,10 @@ const ScoresView = () => {
                 '#ff5722',
               ],
               borderColor: [
-                '#f9d950',
+                theme.primary,
                 '#4caf50',
                 '#2196f3',
-                '#ff9800',
+                theme.accent,
                 '#9c27b0',
                 '#e91e63',
                 '#00bcd4',
@@ -921,7 +907,7 @@ const ScoresView = () => {
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               titleColor: '#ffffff',
               bodyColor: '#ffffff',
-              borderColor: '#f9d950',
+              borderColor: theme.primary,
               borderWidth: 1,
               cornerRadius: 8,
               displayColors: false,
@@ -1014,10 +1000,10 @@ const ScoresView = () => {
               color: '#000000',
             },
             '& .Mui-selected': {
-              backgroundColor: '#f9d950',
+              backgroundColor: theme.primary,
               color: '#000000',
               '&:hover': {
-                backgroundColor: '#f9d95080',
+                backgroundColor: `${theme.primary}80`,
               }
             }
           }}

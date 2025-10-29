@@ -25,6 +25,7 @@ import {
   Search as SearchIcon
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
+import { pointsOptions, zaghlolTheme } from './pointsConfig';
 
 const Selector = () => {
   const [codes, setCodes] = useState([]);
@@ -138,16 +139,18 @@ const Selector = () => {
 
   // Filter codes based on search query
   const filteredCodes = codes.filter(code => {
+    if (!code) return false;
     const searchLower = searchQuery.toLowerCase();
     return (
-      code.code.toLowerCase().includes(searchLower) ||
-      code.name.toLowerCase().includes(searchLower) ||
-      code.class.toLowerCase().includes(searchLower)
+      (code.code?.toLowerCase() || '').includes(searchLower) ||
+      (code.name?.toLowerCase() || '').includes(searchLower) ||
+      (code.class?.toLowerCase() || '').includes(searchLower)
     );
   });
 
   // Check if a code is already selected
   const isCodeSelected = (code) => {
+    if (!code || !code.code) return false;
     return pendingUpdates.some(update => update.qrCode === code.code);
   };
 
@@ -164,7 +167,7 @@ const Selector = () => {
   };
 
   const handleAddCode = () => {
-    if (selectedCode && selectedValue && !isCodeSelected(selectedCode)) {
+    if (selectedCode && selectedCode.code && selectedValue && !isCodeSelected(selectedCode)) {
       setPendingUpdates(prev => [...prev, {
         qrCode: selectedCode.code,
         selectedValue: parseInt(selectedValue, 10),
@@ -364,7 +367,7 @@ const Selector = () => {
       maxWidth: 800, 
       margin: "auto", 
       p: 3,
-      backgroundColor: '#f9f5e1',
+      backgroundColor: zaghlolTheme.background,
       minHeight: '100vh',
       position: 'relative'
     }}>
@@ -374,11 +377,18 @@ const Selector = () => {
           startIcon={<QrCodeIcon />}
           onClick={() => router.push('/scanner')}
           sx={{
-            bgcolor: '#2e7d32',
-            color: '#fff',
+            bgcolor: zaghlolTheme.accent,
+            color: zaghlolTheme.surface,
+            borderRadius: zaghlolTheme.borderRadius,
+            px: 3,
+            py: 1.5,
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
             '&:hover': {
-              bgcolor: '#2e7d32',
-              opacity: 0.9
+              bgcolor: zaghlolTheme.accent,
+              opacity: 0.9,
+              transform: 'translateY(-2px)',
+              boxShadow: `0 4px 12px ${zaghlolTheme.accent}40`
             }
           }}
         >
@@ -435,7 +445,12 @@ const Selector = () => {
         component="h1" 
         gutterBottom 
         align="center" 
-        sx={{ color: '#2e7d32', mb: 4 }}
+        sx={{ 
+          color: zaghlolTheme.text, 
+          mb: 4,
+          fontWeight: 'bold',
+          textShadow: `0 2px 4px ${zaghlolTheme.primary}20`
+        }}
       >
         إضافة النقاط
       </Typography>
@@ -493,16 +508,20 @@ const Selector = () => {
             elevation={3} 
             sx={{ 
               p: 3, 
-              borderRadius: 2,
-              backgroundColor: 'white',
-              height: '100%'
+              borderRadius: zaghlolTheme.borderRadiusLarge,
+              backgroundColor: zaghlolTheme.surface,
+              height: '100%',
+              border: `2px solid ${zaghlolTheme.primary}20`,
+              '&:hover': {
+                boxShadow: `0 8px 24px ${zaghlolTheme.primary}30`
+              }
             }}
           >
             <Typography 
               variant="h6" 
               sx={{ 
                 mb: 2,
-                color: '#000000',
+                color: zaghlolTheme.text,
                 fontWeight: 'bold'
               }}
             >
@@ -521,8 +540,8 @@ const Selector = () => {
                   <Autocomplete
                     value={selectedCode}
                     onChange={handleCodeChange}
-                    options={codes.filter(code => !isCodeSelected(code))}
-                    getOptionLabel={(option) => `${option.code}`}
+                    options={codes.filter(code => code && code.code && !isCodeSelected(code))}
+                    getOptionLabel={(option) => option?.code || ''}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -534,12 +553,12 @@ const Selector = () => {
                       <li {...props}>
                         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                           <Typography variant="body1">
-                            {option.code}
+                            {option?.code || ''}
                           </Typography>
                         </Box>
                       </li>
                     )}
-                    isOptionEqualToValue={(option, value) => option.code === value.code}
+                    isOptionEqualToValue={(option, value) => option?.code === value?.code}
                     noOptionsText="لا توجد نتائج"
                     loadingText="جاري التحميل..."
                     sx={{
@@ -547,49 +566,62 @@ const Selector = () => {
                         '& fieldset': {
                           borderColor: 'rgba(0, 0, 0, 0.23)',
                         },
-                        '&:hover fieldset': {
-                          borderColor: '#f9d950',
+                      '&:hover fieldset': {
+                          borderColor: zaghlolTheme.accent,
                         },
                         '&.Mui-focused fieldset': {
-                          borderColor: '#f9d950',
+                          borderColor: zaghlolTheme.accent,
                         },
                       },
                       '& .MuiInputLabel-root.Mui-focused': {
-                        color: '#f9d950',
+                        color: zaghlolTheme.accent,
                       },
                     }}
                   />
                 </FormControl>
 
                 <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>اختيار النقاط</InputLabel>
+                  <InputLabel sx={{ color: zaghlolTheme.text }}>اختيار النقاط</InputLabel>
                   <Select
                     value={selectedValue}
                     onChange={handleValueChange}
                     label="اختيار النقاط"
                     sx={{
-                      bgcolor: 'white',
-                      borderRadius: 2
+                      bgcolor: zaghlolTheme.surface,
+                      borderRadius: zaghlolTheme.borderRadius,
+                      border: `2px solid ${zaghlolTheme.primary}40`,
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        border: 'none'
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        border: 'none'
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        border: `2px solid ${zaghlolTheme.accent}`
+                      }
                     }}
                   >
-                    <MenuItem value="50">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ConstructionIcon sx={{ color: 'yellow' }} />
-                        <Typography>حضور اول ١٠ دقايق = ٥٠ طوبة</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="25">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ConstructionIcon sx={{ color: 'yellow' }} />
-                        <Typography>حضور تاني ١٠ دقايق = ٢٥ طوبة</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="10">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ConstructionIcon sx={{ color: 'yellow' }} />
-                        <Typography>مشاركة في الموضوع = ١٠ طوبات</Typography>
-                      </Box>
-                    </MenuItem>
+                    {pointsOptions.map(option => (
+                      <MenuItem key={option.key} value={String(option.value)}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ 
+                            width: 24, 
+                            height: 24, 
+                            borderRadius: '50%', 
+                            bgcolor: zaghlolTheme.primary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            color: zaghlolTheme.text
+                          }}>
+                            ز
+                          </Box>
+                          <Typography sx={{ color: zaghlolTheme.text, fontWeight: '500' }}>{option.label}</Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
 
@@ -600,11 +632,21 @@ const Selector = () => {
                   fullWidth
                   startIcon={<AddIcon />}
                   sx={{
-                    bgcolor: '#f9d950',
-                    color: '#000000',
+                    bgcolor: zaghlolTheme.primary,
+                    color: zaghlolTheme.text,
+                    borderRadius: zaghlolTheme.borderRadius,
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
                     '&:hover': {
-                      bgcolor: '#f9d950',
-                      opacity: 0.9
+                      bgcolor: zaghlolTheme.primary,
+                      opacity: 0.9,
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 4px 12px ${zaghlolTheme.primary}40`
+                    },
+                    '&:disabled': {
+                      bgcolor: zaghlolTheme.textSecondary,
+                      color: zaghlolTheme.surface
                     }
                   }}
                 >
@@ -620,18 +662,22 @@ const Selector = () => {
             elevation={3} 
             sx={{ 
               p: 3, 
-              borderRadius: 2,
-              backgroundColor: 'white',
+              borderRadius: zaghlolTheme.borderRadiusLarge,
+              backgroundColor: zaghlolTheme.surface,
               height: '100%',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              border: `2px solid ${zaghlolTheme.secondary}20`,
+              '&:hover': {
+                boxShadow: `0 8px 24px ${zaghlolTheme.secondary}30`
+              }
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  color: '#000000',
+                  color: zaghlolTheme.text,
                   fontWeight: 'bold'
                 }}
               >
@@ -643,11 +689,21 @@ const Selector = () => {
                 onClick={syncUpdates}
                 disabled={syncing || pendingUpdates.length === 0}
                 sx={{
-                  bgcolor: '#f9d950',
-                  color: '#000000',
+                  bgcolor: zaghlolTheme.accent,
+                  color: zaghlolTheme.surface,
+                  borderRadius: zaghlolTheme.borderRadius,
+                  px: 2,
+                  py: 1,
+                  fontWeight: 'bold',
                   '&:hover': {
-                    bgcolor: '#f9d950',
-                    opacity: 0.9
+                    bgcolor: zaghlolTheme.accent,
+                    opacity: 0.9,
+                    transform: 'translateY(-1px)',
+                    boxShadow: `0 4px 12px ${zaghlolTheme.accent}40`
+                  },
+                  '&:disabled': {
+                    bgcolor: zaghlolTheme.textSecondary,
+                    color: zaghlolTheme.surface
                   }
                 }}
               >
@@ -684,7 +740,7 @@ const Selector = () => {
                       <ListItem>
                         <ListItemText 
                           primary={update.qrCode}
-                          secondary={`النقاط: ${update.selectedValue} طوبة`}
+                          secondary={`النقاط: ${update.selectedValue} زغلول`}
                           primaryTypographyProps={{
                             dir: 'rtl',
                             sx: { fontWeight: 'medium' }
@@ -731,8 +787,8 @@ const Selector = () => {
             {buildInfoRow("الفصل:", apiResponse.data.class)}
             {buildInfoRow("الفريق:", apiResponse.data.team)}
             <Divider sx={{ my: 2 }} />
-            {buildInfoRow("النقاط السابقة:", `${apiResponse.data.oldScore} طوبة`, true)}
-            {buildInfoRow("النقاط الجديدة:", `${apiResponse.data.newScore} طوبة`, true)}
+            {buildInfoRow("النقاط السابقة:", `${apiResponse.data.oldScore} زغلول`, true)}
+            {buildInfoRow("النقاط الجديدة:", `${apiResponse.data.newScore} زغلول`, true)}
             <Typography 
               align="center" 
               sx={{ 
@@ -741,7 +797,7 @@ const Selector = () => {
                 fontWeight: 'bold'
               }}
             >
-              تم إضافة {apiResponse.data.pointsAdded} طوبة
+              تم إضافة {apiResponse.data.pointsAdded} زغلول
             </Typography>
           </CardContent>
         </Card>

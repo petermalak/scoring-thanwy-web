@@ -21,13 +21,13 @@ const SplashScreen = () => {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        background: 'linear-gradient(to bottom, #f9d950, #f9d950)',
+        background: 'linear-gradient(to bottom, #A8E6CF, #2EC4B6)',
       }}
     >
       <Box
         component="img"
-        src="/icon/icon.png"
-        alt="Thanwy Logo"
+        src="/icon/zaghlol.svg"
+        alt="Zaghlol Icon"
         sx={{
           width: 180,
           height: 180,
@@ -43,7 +43,7 @@ const SplashScreen = () => {
           textAlign: 'center',
         }}
       >
-        Thanwy Scoring System
+        نظام نقاط زغلول
       </Typography>
     </Box>
   );

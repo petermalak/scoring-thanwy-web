@@ -4,10 +4,10 @@ export default function Document() {
   return (
     <Html lang="ar" dir="rtl">
       <Head>
-        <link rel="icon" href="/icon/icon.png" />
+        <link rel="icon" href="/icon/zaghlol.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon/icon.png" />
-        <meta name="theme-color" content="#f9d950" />
-        <meta name="description" content="Thanwy Scoring System" />
+        <meta name="theme-color" content="#2EC4B6" />
+        <meta name="description" content="Zaghlol Scoring System" />
       </Head>
       <body>
         <Main />
