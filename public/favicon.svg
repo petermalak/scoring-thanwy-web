@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#D63C3C"/>
+      <stop offset="100%" stop-color="#B83030"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Red canopy circle background -->
+  <circle cx="128" cy="128" r="116" fill="url(#bg)" filter="url(#shadow)"/>
+  <!-- Cream ring -->
+  <circle cx="128" cy="128" r="112" fill="none" stroke="#F2D4A0" stroke-width="10"/>
+  <!-- Arabic letter Fa for Flex -->
+  <g transform="translate(0,10)">
+    <text x="128" y="150" text-anchor="middle" font-size="150" font-family="'Segoe UI', Tahoma, Arial, sans-serif" fill="#FFFFFF" font-weight="700">ف</text>
+  </g>
+</svg>
+

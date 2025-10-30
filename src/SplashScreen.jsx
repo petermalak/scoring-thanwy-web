@@ -21,13 +21,13 @@ const SplashScreen = () => {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        background: 'linear-gradient(to bottom, #A8E6CF, #2EC4B6)',
+        background: 'linear-gradient(to bottom, #FFF4E6, #F7E0B2)',
       }}
     >
       <Box
         component="img"
-        src="/icon/zaghlol.svg"
-        alt="Zaghlol Icon"
+        src="/icon/store.png"
+        alt="دكانة عم زغلول"
         sx={{
           width: 180,
           height: 180,
@@ -38,12 +38,12 @@ const SplashScreen = () => {
         variant="h4"
         sx={{
           fontWeight: 'bold',
-          color: 'white',
+          color: '#8B5E3C',
           letterSpacing: '1.2px',
           textAlign: 'center',
         }}
       >
-        نظام نقاط زغلول
+        دكانة عم زغلول
       </Typography>
     </Box>
   );

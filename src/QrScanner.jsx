@@ -608,7 +608,7 @@ const QrScanner = () => {
                       fontWeight: 'bold',
                       color: theme.text
                     }}>
-                      ز
+                      ف
                     </Box>
                     <Typography sx={{ color: theme.text, fontWeight: '500' }}>{option.label}</Typography>
                   </Box>
@@ -704,7 +704,7 @@ const QrScanner = () => {
                 <ListItem>
                   <ListItemText
                     primary={update.qrCode}
-                    secondary={`النقاط: ${update.selectedValue} زغلول`}
+                    secondary={`النقاط: ${update.selectedValue} فليكس`}
                   />
                   <ListItemSecondaryAction>
                     <IconButton

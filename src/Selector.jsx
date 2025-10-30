@@ -616,7 +616,7 @@ const Selector = () => {
                             fontWeight: 'bold',
                             color: zaghlolTheme.text
                           }}>
-                            ز
+                            ف
                           </Box>
                           <Typography sx={{ color: zaghlolTheme.text, fontWeight: '500' }}>{option.label}</Typography>
                         </Box>
@@ -740,7 +740,7 @@ const Selector = () => {
                       <ListItem>
                         <ListItemText 
                           primary={update.qrCode}
-                          secondary={`النقاط: ${update.selectedValue} زغلول`}
+                          secondary={`النقاط: ${update.selectedValue} فليكس`}
                           primaryTypographyProps={{
                             dir: 'rtl',
                             sx: { fontWeight: 'medium' }
@@ -787,8 +787,8 @@ const Selector = () => {
             {buildInfoRow("الفصل:", apiResponse.data.class)}
             {buildInfoRow("الفريق:", apiResponse.data.team)}
             <Divider sx={{ my: 2 }} />
-            {buildInfoRow("النقاط السابقة:", `${apiResponse.data.oldScore} زغلول`, true)}
-            {buildInfoRow("النقاط الجديدة:", `${apiResponse.data.newScore} زغلول`, true)}
+            {buildInfoRow("النقاط السابقة:", `${apiResponse.data.oldScore} فليكس`, true)}
+            {buildInfoRow("النقاط الجديدة:", `${apiResponse.data.newScore} فليكس`, true)}
             <Typography 
               align="center" 
               sx={{ 
@@ -797,7 +797,7 @@ const Selector = () => {
                 fontWeight: 'bold'
               }}
             >
-              تم إضافة {apiResponse.data.pointsAdded} زغلول
+              تم إضافة {apiResponse.data.pointsAdded} فليكس
             </Typography>
           </CardContent>
         </Card>
