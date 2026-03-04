@@ -22,7 +22,8 @@ import {
   Sync as SyncIcon,
   QrCodeScanner as QrCodeIcon,
   ListAlt as ListAltIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  CardGiftcard as GiftIcon
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { pointsOptions, zaghlolTheme } from './pointsConfig';
@@ -371,7 +372,7 @@ const Selector = () => {
       minHeight: '100vh',
       position: 'relative'
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Button
           variant="contained"
           startIcon={<QrCodeIcon />}
@@ -393,6 +394,50 @@ const Selector = () => {
           }}
         >
           ماسح QR
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<ListAltIcon />}
+          onClick={() => router.push('/scores')}
+          sx={{
+            bgcolor: zaghlolTheme.primary,
+            color: zaghlolTheme.surface,
+            borderRadius: zaghlolTheme.borderRadius,
+            px: 3,
+            py: 1.5,
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            '&:hover': {
+              bgcolor: zaghlolTheme.primary,
+              opacity: 0.9,
+              transform: 'translateY(-2px)',
+              boxShadow: `0 4px 12px ${zaghlolTheme.primary}40`
+            }
+          }}
+        >
+          النقاط
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<GiftIcon />}
+          onClick={() => router.push('/gifts')}
+          sx={{
+            bgcolor: zaghlolTheme.secondary,
+            color: zaghlolTheme.text,
+            borderRadius: zaghlolTheme.borderRadius,
+            px: 3,
+            py: 1.5,
+            fontSize: '1.1rem',
+            fontWeight: 'bold',
+            '&:hover': {
+              bgcolor: zaghlolTheme.secondary,
+              opacity: 0.9,
+              transform: 'translateY(-2px)',
+              boxShadow: `0 4px 12px ${zaghlolTheme.secondary}40`
+            }
+          }}
+        >
+          متجر الهدايا
         </Button>
       </Box>
 

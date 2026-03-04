@@ -58,6 +58,7 @@ import {
   ViewModule as ViewModuleIcon,
   ViewList as ViewListIcon,
   BarChart as BarChartIcon,
+  CardGiftcard as GiftIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -71,6 +72,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { zaghlolTheme } from './pointsConfig';
+import { useRouter } from 'next/router';
 
 ChartJS.register(
   CategoryScale,
@@ -87,6 +89,7 @@ const ITEMS_PER_PAGE = 10;
 const theme = zaghlolTheme;
 
 const ScoresView = () => {
+  const router = useRouter();
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'));
   const [scores, setScores] = useState([]);
@@ -452,6 +455,25 @@ const ScoresView = () => {
             نظام النقاط
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={<GiftIcon />}
+              onClick={() => router.push('/gifts')}
+              sx={{
+                bgcolor: theme.accent,
+                color: theme.surface,
+                borderRadius: theme.borderRadius,
+                px: 3,
+                py: 1,
+                fontWeight: 'bold',
+                '&:hover': {
+                  bgcolor: theme.accent,
+                  opacity: 0.9,
+                },
+              }}
+            >
+              متجر الهدايا
+            </Button>
             <Tooltip title="تحديث البيانات">
               <IconButton
                 onClick={handleRefresh}

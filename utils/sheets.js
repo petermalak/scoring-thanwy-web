@@ -34,6 +34,11 @@ let cachedSheetData = null;
 let lastFetchTime = null;
 const CACHE_DURATION_SHEET = 5 * 60 * 1000; // 5 minutes
 
+// Cache for gifts data
+let cachedGiftsData = null;
+let lastGiftsFetchTime = null;
+const CACHE_DURATION_GIFTS = 5 * 60 * 1000; // 5 minutes
+
 // Retry helper function
 async function withRetry(operation, operationName) {
   let lastError;
@@ -203,6 +208,42 @@ export async function updateRowScore(rowIndex, newScore) {
     return true;
   } catch (error) {
     console.error("Error updating score:", error);
+    throw error;
+  }
+}
+
+export async function getGiftsData() {
+  try {
+    // Check if we have valid cached data
+    if (cachedGiftsData && lastGiftsFetchTime && (Date.now() - lastGiftsFetchTime < CACHE_DURATION_GIFTS)) {
+      return cachedGiftsData;
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: "gifts!A:D", // Column A: ID, Column B: Name, Column C: Price, Column D: Image Link
+    });
+
+    const rows = response.data.values || [];
+    
+    if (rows.length === 0) {
+      return [];
+    }
+
+    // Skip header row and transform the data
+    const gifts = rows.slice(1).map((row) => ({
+      id: row[0] || '', // ID from column A
+      name: row[1] || '', // Name from column B
+      price: parseInt(row[2] || '0', 10), // Price from column C
+      imageUrl: row[3] || '', // Image Link from column D
+    })).filter(gift => gift.name); // Filter out empty rows
+
+    cachedGiftsData = gifts;
+    lastGiftsFetchTime = Date.now();
+
+    return gifts;
+  } catch (error) {
+    console.error('Error fetching gifts data:', error);
     throw error;
   }
 }
